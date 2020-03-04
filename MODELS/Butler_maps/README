@@ -1,0 +1,1 @@
+Data recieived from Ethan Butler in CSV Format, 3 seprate files showing specific leaf area, leaf nitrogen and leaf phosphorus and their standard devations. The data was then convereted to netCDF and the different plant factors shown as variables. The orgional data was in half degree which then also increaded to 1 degree using cdo. 
