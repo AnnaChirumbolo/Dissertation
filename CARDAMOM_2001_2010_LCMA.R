@@ -61,34 +61,6 @@ butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", varn
 butler_sla_df <- raster::as.data.frame(butler_sla, xy = TRUE) 
 butler_sla_std_df <- raster::as.data.frame(butler_sla_std, xy=TRUE)
 
-### new df manipulation ----
-
-  # CARDAMOM 1x1
-cardamom_df <- cardamom_df %>%
-  filter(sla!=0)
-cardamom_df <- cardamom_df %>%
-  mutate(degree=seq.int(nrow(cardamom_df)))
-# see what min and max values are for sla in cardamom
-setMinMax (cardamom_sla[[1]]) # values: 3.239088, 62.14139  (min, max)
-cardamom_sla_layer[cardamom_sla_layer > 40] <- NA
-
-  # BUTLER 1x1
-
-butler_nc <- butler_nc %>%
-  rename("sla"=specific.leaf.area)
-butler_nc <- butler_nc %>%
-  filter(specific.leaf.area!=0)
-butler_nc <- butler_nc %>%
-  mutate(degree = seq.int(nrow(butler_nc)))
-# see what min and max values are for sla in butler
-setMinMax(butler_sla[[1]]) #values: 5.076668, 32.43943  (min, max)
-
-# butler <- read.csv("Butler_sla.csv") # this dataset is at 0.5x0.5 res, 
-# don't need it
-# butler <- butler %>%
-#  rename("sla.m2.kg"=spat_1_pft_sla, "sla_std" = spat_1_pft_sla_sd)
-# butler <- write.csv(butler,"Butler_sla.csv")
-
 ### visualising sla from both datasets DIFF SCALES ----
 png("./figures/plot_sla_DIFFSCALES.png", width = 50, height = 20, units = "cm", res = 200)
 par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1, new=FALSE)
@@ -180,13 +152,19 @@ joined_sla_matrix <- joined_sla_noNA %>%
   gather(dataset, sla,-x,-y) %>%
   mutate(x_ = make.unique(as.character(x))) %>%
   mutate(y_ = make.unique(as.character(y))) %>%
-  select(-x,-y, -dataset)
+  select(-x,-y)
 
-rownames(joined_sla_matrix) <- joined_sla_matrix[,3]
+joined_wide <- dcast(joined_sla_matrix,dataset+y_~x_, value.var="sla")
+joined_wide <- joined_wide %>%
+  select(-dataset)
+
+rownames(joined_wide) <- joined_wide[,1]
 joined_sla_matrix <- joined_sla_matrix[,-3]
 
 joined_sla_matrix <- joined_sla_matrix %>%
   spread(x_,sla)
+
+str(joined_sla_matrix)
 
 levelplot(joined_sla_nocoordNA, col.regions = terrain.colors(100)) # try cm.colors() or terrain.colors()
 View(joined_sla)
