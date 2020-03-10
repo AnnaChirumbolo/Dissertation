@@ -6,11 +6,12 @@
 
 ## things to do 
   
-  # first observations
 # maps - add scales
-# diff map - change scale colouring
-# scatter plot - make heatmap 
-# correlation chart - use density maps to find difference between histograms, to be calculated 
+# diff map - change scale colouring TO DO!
+
+# scatter plot - make heatmap --| ASK CODING CLUB / MADE A HEATSCATTER (BETTER REPR) / ASK IF I COULD DO IT WITH THE MAP OF THE WORLD?
+
+# correlation chart - use density maps to find difference between histograms, to be calculated DONE
 
   # for results (to put in table and have the figures showing)
 # matrix of map, see how they differ from each other by each grid point 
@@ -37,17 +38,19 @@ library(RColorBrewer)
 library(ggplot2)
 library(raster)
 library(tidyverse)
+library(tidyr)
 library(SimDesign)
 library(Metrics)
 library(gplots)
 library(reshape2)
 library(purrr)
-library("grid")
+library(grid)
 library(diffeR)
 library(PerformanceAnalytics)
 library(viridis)
 library(hrbrthemes)
 library(lattice)
+library(data.table)
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
@@ -80,8 +83,19 @@ plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63),
      main="Cardamom\n")
 plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63), 
      main="Butler\n",
-     legend.args=list(text='\nSpecific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3))
+     legend.args=list(text='\n Specific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3))
 dev.off() # saved to folder 
+
+### visualising diff between CARDAMOM AND BUTLER ----
+breakpoints <- c(-25,-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45)
+colors <- c(c("#104E8B","#00688B","#00BFFF","#B2DFEE","#E0FFFF", "#FFF0F5", "#FFB6C1", 
+              "#FFAEB9","#EEA2AD",  "#FF6A6A", "#EE6363","#CD5555", "#EE2C2C", "#CD2626",
+              "#8B1A1A"))
+png("./figures/plot_diff-CARD-BUTL.png", width = 50, height = 35, units = "cm", res = 200)
+plot(cardamom_sla[[1]]-butler_sla[[1]], asp=NA, breaks=breakpoints, col=colors, xlab="\nLongitude",
+     ylab="Latitude\n", legend.args = list(text="\n Specific Leaf Area (m2.kg-1)", side=4, font=1, line=2.3))
+      # could re-do it finding out a way to automatise this with package like rcolourbrewer?
+dev.off()
 
 ### Joining datasets ----
 
@@ -108,14 +122,14 @@ joined_sla_std_nocoord <- joined_sla_std %>%
 joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
   filter(cardamom!=0 & butler != 0)
 
-### 1) DATA EXPLORATION 1 - MAKING SCATTERPLOT (CORRELATION) AND HEATMAP ----
+### 1) DATA EXPLORATION 1 - SERIES OF PLOTS ----
 
-  # scatterplot (correlation chart) 
+  # scatterplots (correlation chart) ----
 corr_char_sla <- chart.Correlation(joined_sla_nocoord, histogram=TRUE, pch=19)
 corr_char_sla_std <- chart.Correlation(joined_sla_std_nocoord, histogram = TRUE, pch=19)
 # both too many data points to be sure of what's going on - too clustered 
 
-  # 2D density chart (correlation charts)
+  # 2D density chart (correlation charts) ----
 
 # raster function 
 (heatmap_trial <- ggplot(joined_sla_nocoord, aes(cardamom, butler))+
@@ -131,7 +145,7 @@ ggsave("./figures/2d_density.png", last_plot(), width = 30, height = 20, units="
 ggsave("./figures/2d_density_polygon.png", last_plot(), width = 30, height = 20,
        units = "cm", dpi = 300)
 
-# hexbin version of 2d map 
+  # hexbin version of 2d map ----
 
 (hexbin_map_corr <- ggplot(joined_sla, aes(x=cardamom, y=butler) ) +
   geom_hex(bins = 100) +
@@ -142,45 +156,96 @@ ggsave("./figures/2d_density_polygon.png", last_plot(), width = 30, height = 20,
 ggsave("./figures/hexbin_map-count200.png", hexbin_map_corr, width = 30, 
        height = 20, units = "cm", dpi = 300)
 
-# heatmap (with lattice package and viridis package for colour palette)
+  # heatmap (with lattice package and viridis package for colour palette) ASK CODING CLUB! ----
 
   # modifying the dataset (joined_sla) to wide format for the matrix
-colnames(joined_sla) <- joined_sla[1,]
-rownames(joined_sla_noNA) <- joined_sla_noNA[,1]
 
-joined_sla_matrix <- joined_sla_noNA %>% 
-  gather(dataset, sla,-x,-y) %>%
-  mutate(x_ = make.unique(as.character(x))) %>%
-  mutate(y_ = make.unique(as.character(y))) %>%
-  select(-x,-y)
+joined_wide <- acast(joined_sla, x+y~cardamom, value.var = "butler")
+  # this gives back a huge matrix - 6,4gb - cannot be processed to be visualised...
 
-joined_wide <- dcast(joined_sla_matrix,dataset+y_~x_, value.var="sla")
-joined_wide <- joined_wide %>%
-  select(-dataset)
+levelplot(joined_matrix, col.regions = terrain.colors(100)) # try cm.colors() or terrain.colors()
 
-rownames(joined_wide) <- joined_wide[,1]
-joined_sla_matrix <- joined_sla_matrix[,-3]
+joined_matrix <- as.matrix(joined_sla_nocoord)
+similarity.matrix <- apply(joined_matrix, 2, function(x)rowSums(x==joined_matrix))
+diag(similarity.matrix)<-0
 
-joined_sla_matrix <- joined_sla_matrix %>%
-  spread(x_,sla)
 
-str(joined_sla_matrix)
+  # heat scatter plot LSD PACKAGE ----
+install.packages("LSD")
+library(LSD)
+library(MASS)
 
-levelplot(joined_sla_nocoordNA, col.regions = terrain.colors(100)) # try cm.colors() or terrain.colors()
-View(joined_sla)
+cardamom_sla <- cardamom_sla_df$sla
+butler_sla <- butler_sla_df$specific.leaf.area
+  
+  # LSD package - heatscatter
+png("./figures/heatscatter_sla.png", width = 30, height = 20, units = "cm", res = 300)
+heatscatter <- heatscatter(cardamom_sla, butler_sla, pch = 19, cexplot = 0.5,
+                           colpal="spectral", #disco() for all color options / could set to colorblind
+                           add.contour=TRUE, main = " ",
+                         xlab="\nCardamom SLA (m2.kg-1)", ylab="\nButler SLA (m2.kg-1)")
+dev.off()
+  
+# heatscatter with ggplot2 - NOT FINISHED TRYING (SHOULD I ADD A VERTICAL LINE ACROSS IT?) ----
 
-### DENSITY PLOT ### ----
+d <- na.omit(data.frame(x=cardamom_sla, y=butler_sla))
+d <- kde2d(d$x, d$y)
+d_df <- data.frame(with(d, expand.grid(x,y)), as.vector(d$z))
+names(d_df) <- c("d_x","d_y","d_z")
+model_fit <-loess(d_z~d_x*d_y, data = d_df)
+d$pointdens <- predict(model_fit, newdata=data.frame(d_x=x, d_y=y))
 
-new_joined_density <- new_joined %>%
+(heatscatter_ggplot <- ggplot(d, aes(x,y,color=pointdens))+
+    geom_point()+
+    theme_ipsum())
+                         
+
+### HISTOGRAM AND DIFF BETWEEN HISTS ----
+
+joined_sla_density <- joined_sla %>%
   gather(key="dataset", value="sla",-y,-x)
 
-(density_plot <- ggplot(new_joined_density,aes(x=sla, group=dataset,
+(sla_hist <- ggplot(joined_sla_density,aes(x=sla, group=dataset,
                                                fill=dataset)) +
-  geom_density(adjust=1.5, alpha=0.4)+
+  geom_histogram(bins=100,alpha=0.4)+
   theme_ipsum()+
   scale_fill_discrete(name = "Specific Leaf Area", 
                       labels = c("Cardamom", "Butler")))
-## one way of visualising the distribution of data by themselves 
+
+  # calc diff between density areas?
+
+# 1) SLA:
+hist_sla_data <- as.data.table(ggplot_build(sla_hist)$data[1])
+hist_sla_data <- hist_sla_data %>%
+  select(count,xmin,xmax,group)
+sla_hist_c <- hist_sla_data[group==1]
+sla_hist_b <- hist_sla_data[group==2]
+diff_sla_hist <- merge(sla_hist_c, sla_hist_b, by=c("xmin","xmax"), suffixes = c(".c",".b"), allow.cartesian=TRUE)
+    #Error in vecseq(f__, len__, if (allow.cartesian || notjoin || !anyDuplicated(f__,  : 
+    #Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
+diff_sla_hist <- diff_sla_hist[,Difference:=count.c-count.b]
+setnames(diff_sla_hist, old = c("count.c","count.b"),new = c("Cardamom","Butler"))
+diff_sla_hist1 <- melt(diff_sla_hist, id.vars = c("xmin","xmax"), measure.vars = c("Cardamom","Difference","Butler"))
+
+(diff_hist_plot <- ggplot(diff_sla_hist1, aes(xmin=xmin, xmax=xmax, ymax=value,ymin=0, group=variable, 
+                                         fill=variable, color=variable, alpha = 0.9))+
+    geom_rect()+
+    theme_classic()+
+    scale_fill_viridis(discrete = TRUE)+
+    scale_color_manual(values=c("black","black","black"))+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
+    theme(legend.title = element_blank())) # the whole length it says the difference between cardamom-butler!
+ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20, units = "cm", 
+       dpi = 300)
+    
+  # save the file of difference SLA to csv
+diff_hist <- write.csv(diff_dens, "difference_hist.csv")
+
+# 2) SLA STDEV:
+
+
+
 
 ### scatterplot attempt 2 ----
 
@@ -249,7 +314,6 @@ new_joined <- new_joined %>%
   rename("cardamom"=sla,"butler"=specific.leaf.area)%>%
   gather(key=dataset,value=sla,-x,-y)
 
-joined_wide <- dcast(new_joined,dataset+y~x, value.var="sla")
 
 joined_wide <- as.matrix(joined_wide)
 rownames(joined_wide) <- joined_wide[, 1]
