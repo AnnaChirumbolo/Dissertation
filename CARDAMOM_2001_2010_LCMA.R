@@ -27,6 +27,10 @@ install.packages("raster")
 install.packages("SimDesign")
 install.packages("Metrics")
 install.packages("gplots")
+install.packages("diffeR")
+install.packages("PerformanceAnalytics")
+install.packages("hrbrthemes")
+install.packages("viridisLite")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -38,6 +42,12 @@ library(Metrics)
 library(gplots)
 library(reshape2)
 library(purrr)
+library("grid")
+library(diffeR)
+library(PerformanceAnalytics)
+library(viridis)
+library(hrbrthemes)
+library(lattice)
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
@@ -80,74 +90,108 @@ setMinMax(butler_sla[[1]]) #values: 5.076668, 32.43943  (min, max)
 # butler <- write.csv(butler,"Butler_sla.csv")
 
 ### visualising sla from both datasets DIFF SCALES ----
-
-png("plot_sla_DIFFSCALES.png", width = 50, height = 20, units = "cm", res = 200)
-par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1)
-plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")))
-plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")))
+png("./figures/plot_sla_DIFFSCALES.png", width = 50, height = 20, units = "cm", res = 200)
+par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1, new=FALSE)
+plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
+     main="Cardamom\n")
+plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")),
+     legend.args=list(text='\nSpecific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3),
+     main="Butler\n")
+#grid.text("Specific Leaf Area (m2.kg-1)", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
 dev.off()
 
 ### visualising sla from both datasets SAME SCALE ----
 
-png("plot_sla_SAMESCALE.png", width = 50, height = 20, units = "cm", res = 200)
+png("./figures/plot_sla_SAMESCALE.png", width = 50, height = 20, units = "cm", res = 200)
 par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1)
-plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63))
-plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63))
+plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63),
+     main="Cardamom\n")
+plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63), 
+     main="Butler\n",
+     legend.args=list(text='\nSpecific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3))
 dev.off() # saved to folder 
 
-### SCATTERPLOT - joining datasets ----
+### Joining datasets ----
 
-new_joined <- left_join(cardamom_df, butler_df) 
-
-new_joined <- new_joined %>%
-  filter(sla!=0 & specific.leaf.area!=0)
-
-###### LET'S MAKE THE SCATTERPLOT - ATTEMPT 1 ###### ----
-
-(map_scatter <- ggplot()+
-  # geom_point(cardamom_df, mapping=aes(sla,y,color="red", alpha=0.7))+
-  #geom_point(butler_nc, mapping=aes(specific.leaf.area,y,color="blue",alpha=0.7))+
-   geom_point(cardamom_df,mapping = aes(x,y,color="red",alpha=0.7))+
-   facet_grid(sla~.,scale="free"))
-   
-geom_point(butler_nc, mapping = aes(x,specific.leaf.area,color="blue",alpha=0.7))
- #  ylim(-90,+90)+
- #  xlim(-180,+180))# not ideal... 
-
-## need to use degree 1x1 as my factor for correlation - for every degree of lat/lon
-## there is a value of sla that is correlated and that is from both datasets...
-## TO FIGURE OUT TOMORROW.
-
-plot(cardamom_df$sla, col="red" )
-par(new=TRUE)
-plot(butler_nc$specific.leaf.area, col="green")
-
-butler$butler_sla <- butler$sla.m2.kg
-cardamom_df$cardamom_sla <- cardamom_df$sla
-butler <- butler %>%
-  select(-sla.m2.kg)
-cardamom_df <- cardamom_df %>%
-  select(-sla)s
-
-joined_sla <- joined_sla%>%
-  rename("b_sla" = sla.m2.kg, "c_sla"=sla) 
+joined_sla <- left_join(cardamom_sla_df, butler_sla_df) 
+joined_sla_std <- left_join(cardamom_sla_std_df, butler_sla_std_df)
 
 joined_sla <- joined_sla %>%
-  mutate(c_sla1=c_sla, b_sla1=b_sla) %>%
-  gather(key=dataset, value=sla1, -c_sla,-b_sla)
+  rename("cardamom" = sla, "butler" = specific.leaf.area)
+joined_sla_std <- joined_sla_std %>%
+  rename("cardamom_std" = Standard_Deviation, "butler_std" = specific.leaf.area)
 
-col = rep('black', length(new_joined))
-col[new_joined!=butler_sla] <- 'blue'
+  # removing the NAs from the joine datasets 
+joined_sla_noNA <- joined_sla %>%
+  filter(cardamom!=0&butler!=0)
+joined_sla_nocoord <- joined_sla %>%
+  select(-x,-y) 
+joined_sla_nocoordNA <- joined_sla_nocoord %>%
+  filter(cardamom!=0 & butler != 0)
 
-(sla_scatterplot <- ggplot(new_joined, aes(x=sla,y=butler_sla))+
-    geom_point(stat = "identity") +
+joined_sla_std_noNA <- joined_sla_std %>%
+  filter(cardamom_std !=0 & butler_std != 0)
+joined_sla_std_nocoord <- joined_sla_std %>%
+  select(-x,-y)
+joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
+  filter(cardamom!=0 & butler != 0)
+
+### 1) DATA EXPLORATION 1 - MAKING SCATTERPLOT (CORRELATION) AND HEATMAP ----
+
+  # scatterplot (correlation chart) 
+corr_char_sla <- chart.Correlation(joined_sla_nocoord, histogram=TRUE, pch=19)
+corr_char_sla_std <- chart.Correlation(joined_sla_std_nocoord, histogram = TRUE, pch=19)
+# both too many data points to be sure of what's going on - too clustered 
+
+  # 2D density chart (correlation charts)
+
+# raster function 
+(heatmap_trial <- ggplot(joined_sla_nocoord, aes(cardamom, butler))+
+    stat_density_2d(aes(fill=..density..), geom = "raster", contour = FALSE)+
+    scale_x_continuous(expand = c(0,0))+
+    scale_y_continuous(expand = c(0,0)))
+ggsave("./figures/2d_density.png", last_plot(), width = 30, height = 20, units="cm", 
+       dpi = 300)
+
+(heatmap_trial_1 <- ggplot(joined_sla_noNA, aes(cardamom, butler))+
+    stat_density_2d(aes(fill=..level..), geom = "polygon")+
     theme_classic())
+ggsave("./figures/2d_density_polygon.png", last_plot(), width = 30, height = 20,
+       units = "cm", dpi = 300)
 
+# hexbin version of 2d map 
+
+(hexbin_map_corr <- ggplot(joined_sla, aes(x=cardamom, y=butler) ) +
+  geom_hex(bins = 100) +
+  scale_fill_continuous(type = "viridis") +
+  theme_classic()+
+  xlab("\nCardamom")+
+  ylab("Butler\n"))
+ggsave("./figures/hexbin_map-count200.png", hexbin_map_corr, width = 30, 
+       height = 20, units = "cm", dpi = 300)
+
+# heatmap (with lattice package and viridis package for colour palette)
+
+  # modifying the dataset (joined_sla) to wide format for the matrix
+colnames(joined_sla) <- joined_sla[1,]
+rownames(joined_sla_noNA) <- joined_sla_noNA[,1]
+
+joined_sla_matrix <- joined_sla_noNA %>% 
+  gather(dataset, sla,-x,-y) %>%
+  mutate(x_ = make.unique(as.character(x))) %>%
+  mutate(y_ = make.unique(as.character(y))) %>%
+  select(-x,-y, -dataset)
+
+rownames(joined_sla_matrix) <- joined_sla_matrix[,3]
+joined_sla_matrix <- joined_sla_matrix[,-3]
+
+joined_sla_matrix <- joined_sla_matrix %>%
+  spread(x_,sla)
+
+levelplot(joined_sla_nocoordNA, col.regions = terrain.colors(100)) # try cm.colors() or terrain.colors()
+View(joined_sla)
 
 ### DENSITY PLOT ### ----
-library(viridis)
-install.packages("hrbrthemes")
-library(hrbrthemes)
 
 new_joined_density <- new_joined %>%
   gather(key="dataset", value="sla",-y,-x)
@@ -255,18 +299,12 @@ RMSE = function(m, o){
   sqrt(mean((m - o)^2))
 }
 
-
 rmse <- RMSE(butler_nc$sla, cardamom_df$sla)
 rmse
 
 ## PACKAGE differR ----
-install.packages("diffeR")
-library(diffeR)
 
-cardamom_sla <- raster("CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
-butler_nc <- raster("Butler_Leaftraits_Processed_1x1_zeros.nc", varname="sla")
-
-categoryComponentsPlot(cardamom_sla, butler_nc, units = "m^2/kg")
+categoryComponentsPlot(cardamom_sla, butler_sla, units = "m^2/kg")
 
 # Cross-tabulate two RasterLayer objects, or mulitiple layers in a RasterStack 
 # or RasterBrick to create a contingency table.
@@ -284,13 +322,8 @@ sla_only <- new_joined %>%
 sla_only<- rcorr(sla_only, type="pearson")
 
 ## CORRELATION CHART BETWEEN SLA PARAMETERS ----
-sla_only <- sla_only %>%
-  rename("cardamom"=sla, "butler"=specific.leaf.area)
-install.packages("PerformanceAnalytics")
-library(PerformanceAnalytics)
 
 png("correlation_chart.png", width=30, height=20, units = "cm", res = 300)
-corr_char <- chart.Correlation(sla_only, histogram=TRUE, pch=19)
 dev.off()
 
 new_joined <- new_joined %>%
