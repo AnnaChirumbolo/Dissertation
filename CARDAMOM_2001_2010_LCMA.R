@@ -40,15 +40,14 @@ library(reshape2)
 library(purrr)
 
 ### opening netcdf, to data frame ----
-cardamom_sla <- raster("CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
-cardamom_sla_std <- raster("CARDAMOM_2001_2010_LCMA_zeros.nc", varname="Standard_Deviation")
+cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
+cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="Standard_Deviation")
 
 cardamom_sla_df <- raster::as.data.frame(cardamom_sla, xy = TRUE)
 cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
 
-butler_sla <- raster("Butler_Leaftraits_Processed_1x1_zeros.nc", varname="sla")
-butler_sla_std <- raster("Butler_Leaftraits_Processed_1x1_zeros.nc", varname ="sla_std")
-
+butler_sla <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", varname="sla")
+butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", varname ="sla_std")
 butler_sla_df <- raster::as.data.frame(butler_sla, xy = TRUE) 
 butler_sla_std_df <- raster::as.data.frame(butler_sla_std, xy=TRUE)
 
