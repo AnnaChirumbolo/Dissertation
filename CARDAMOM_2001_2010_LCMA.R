@@ -77,24 +77,56 @@ dev.off()
 
 ### visualising sla from both datasets SAME SCALE ----
 
-png("./figures/plot_sla_SAMESCALE.png", width = 50, height = 20, units = "cm", res = 200)
-par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1)
-plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63),
-     main="Cardamom\n")
-plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), zlim=c(0,63), 
-     main="Butler\n",
-     legend.args=list(text='\n Specific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3))
-dev.off() # saved to folder 
+  # SLA
+png("./figures/plot_sla_SAMESCALE.png", width = 55, height = 35, 
+    units = "cm", res = 200)
+#par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1)
+par(mfrow=c(2,2), oma = c(0,2,4,2) + 0.1)
+plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
+     zlim=c(0,65), main="Cardamom\n", 
+     ylab="Latitude")
+plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
+     zlim=c(0,65),  main="Butler\n",
+     legend.args=list(text='\n Specific Leaf Area (m2.kg-1)', side=4, 
+                      font=1, line=2.3)) # doesnt show ylab for some reason...
+
+  # SLA STD
+#png("./figures/plot_slastd_SAMESCALE.png", width = 50, height = 20,
+ #   units="cm", res = 300)
+#par(mfrow=c(1,2), oma = c(0,2,4,2) + 0.1)
+
+setMinMax(butler_sla_std[[1]]) #values     : 2.167324, 17.66437  (min, max)
+plot(cardamom_sla_std[[1]], asp=NA, col=rev(brewer.pal(10,"RdBu")), 
+     zlim=c(0,75), xlab="\nLongitude", 
+     ylab="Latitude")
+plot(butler_sla_std[[1]], asp=NA, col=rev(brewer.pal(10,"RdBu")),
+     zlim=c(0,75), xlab="\nLongitude",
+     legend.args=list(text="\nSpecific Leaf Area Standard Deviation (m2.kg-1)",
+                      side=4, font=1, line=2.3))
+dev.off()
 
 ### visualising diff between CARDAMOM AND BUTLER ----
-breakpoints <- c(-25,-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45)
-colors <- c(c("#104E8B","#00688B","#00BFFF","#B2DFEE","#E0FFFF", "#FFF0F5", "#FFB6C1", 
-              "#FFAEB9","#EEA2AD",  "#FF6A6A", "#EE6363","#CD5555", "#EE2C2C", "#CD2626",
-              "#8B1A1A"))
-png("./figures/plot_diff-CARD-BUTL.png", width = 50, height = 35, units = "cm", res = 200)
-plot(cardamom_sla[[1]]-butler_sla[[1]], asp=NA, breaks=breakpoints, col=colors, xlab="\nLongitude",
-     ylab="Latitude\n", legend.args = list(text="\n Specific Leaf Area (m2.kg-1)", side=4, font=1, line=2.3))
-      # could re-do it finding out a way to automatise this with package like rcolourbrewer?
+setMinMax(cardamom_sla_std[[1]]-butler_sla_std[[1]])
+breakpoints <- c(-25,-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45, 50,
+                     55,60,65)
+colors <- c("#27408B", "#36648B", "#4876FF", "#8DEEEE", "#FFFFFF", 
+            "#FFEBCD", "#FFEC8B", "#EEDC82", "#FFD700", "#EEB422", "#CD9B1D", 
+            "#8B6914", "#EE6363","#CD5555",
+            "#CD2626",  "#B22222", "#8B1A1A","#000000")
+png("./figures/plot_diff-CARD-BUTL.png", width = 50, height = 20, units = "cm", 
+    res = 200)
+par(mfrow=c(1,2), oma = c(0,2,4,2) + 0.1)
+plot(cardamom_sla[[1]]-butler_sla[[1]], asp=NA, breaks=breakpoints, 
+     col=colors, xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Cardamom-Butler SLA Mean\n")
+# could re-do it finding out a way to automatise this with package like rcolourbrewer?
+plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
+     col=colors, xlab="\nLongitude", 
+     legend.args = list(text="\n\nSLA StDev (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Cardamom-Butler SLA StDev\n")
 dev.off()
 
 ### Joining datasets ----
@@ -107,7 +139,7 @@ joined_sla <- joined_sla %>%
 joined_sla_std <- joined_sla_std %>%
   rename("cardamom_std" = Standard_Deviation, "butler_std" = specific.leaf.area)
 
-  # removing the NAs from the joine datasets 
+  # new datasets with removed NAs/x-y coords from the joined datasets 
 joined_sla_noNA <- joined_sla %>%
   filter(cardamom!=0&butler!=0)
 joined_sla_nocoord <- joined_sla %>%
@@ -125,8 +157,15 @@ joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
 ### 1) DATA EXPLORATION 1 - SERIES OF PLOTS ----
 
   # scatterplots (correlation chart) ----
+png("./figures/corr_chart_sla.png", width = 50, height = 30, units = "cm", 
+    res = 200)
 corr_char_sla <- chart.Correlation(joined_sla_nocoord, histogram=TRUE, pch=19)
+dev.off()
+png("./figures/corr_chart_slastd.png", width = 50, height = 30, units = "cm", 
+    res = 200)
 corr_char_sla_std <- chart.Correlation(joined_sla_std_nocoord, histogram = TRUE, pch=19)
+dev.off()
+
 # both too many data points to be sure of what's going on - too clustered 
 
   # 2D density chart (correlation charts) ----
