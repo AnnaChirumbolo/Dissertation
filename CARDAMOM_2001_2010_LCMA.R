@@ -32,6 +32,7 @@ install.packages("diffeR")
 install.packages("PerformanceAnalytics")
 install.packages("hrbrthemes")
 install.packages("viridisLite")
+install.packages("LSD")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -51,6 +52,9 @@ library(viridis)
 library(hrbrthemes)
 library(lattice)
 library(data.table)
+library(ggpubr)
+library(LSD)
+library(MASS) # do i need it?
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
@@ -129,6 +133,7 @@ plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
      main="Cardamom-Butler SLA StDev\n")
 dev.off()
 
+
 ### Joining datasets ----
 
 joined_sla <- left_join(cardamom_sla_df, butler_sla_df) 
@@ -154,6 +159,7 @@ joined_sla_std_nocoord <- joined_sla_std %>%
 joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
   filter(cardamom!=0 & butler != 0)
 
+
 ### 1) DATA EXPLORATION 1 - SERIES OF PLOTS ----
 
   # scatterplots (correlation chart) ----
@@ -171,28 +177,47 @@ dev.off()
   # 2D density chart (correlation charts) ----
 
 # raster function 
-(heatmap_trial <- ggplot(joined_sla_nocoord, aes(cardamom, butler))+
+(heatmap_raster<- ggplot(joined_sla_nocoord, aes(cardamom, butler))+
     stat_density_2d(aes(fill=..density..), geom = "raster", contour = FALSE)+
     scale_x_continuous(expand = c(0,0))+
     scale_y_continuous(expand = c(0,0)))
 ggsave("./figures/2d_density.png", last_plot(), width = 30, height = 20, units="cm", 
        dpi = 300)
 
-(heatmap_trial_1 <- ggplot(joined_sla_noNA, aes(cardamom, butler))+
+(heatmap_polygon <- ggplot(joined_sla_noNA, aes(cardamom, butler))+
     stat_density_2d(aes(fill=..level..), geom = "polygon")+
-    theme_classic())
+    theme_classic()) 
+# interesting that here the values for cardamom (spanning beyond 20 m2.kg-1) is not being represented - maybe the plot automatically only chooses those points which are shared closer between the two variables?
 ggsave("./figures/2d_density_polygon.png", last_plot(), width = 30, height = 20,
        units = "cm", dpi = 300)
 
   # hexbin version of 2d map ----
-
-(hexbin_map_corr <- ggplot(joined_sla, aes(x=cardamom, y=butler) ) +
+  
+    # SLA MEAN
+(hexbin_sla_corr <- ggplot(joined_sla, aes(x=cardamom, y=butler) ) +
   geom_hex(bins = 100) +
   scale_fill_continuous(type = "viridis") +
   theme_classic()+
   xlab("\nCardamom")+
-  ylab("Butler\n"))
-ggsave("./figures/hexbin_map-count200.png", hexbin_map_corr, width = 30, 
+  ylab("Butler")+
+  theme(legend.position = "none",plot.title = element_text(face = "bold"))+
+  ggtitle("Mean SLA (m2.kg-1)\n"))
+ggsave("./figures/hexbin_map_SLAcount200.png", hexbin_map_corr, width = 30, 
+       height = 20, units = "cm", dpi = 300)
+
+    # SLA STDEV
+(hexbin_slastd_corr <- ggplot(joined_sla_std, aes(x=cardamom_std, y=butler_std) ) +
+    geom_hex(bins = 100) +
+    scale_fill_continuous(type = "viridis") +
+    theme_classic()+
+    xlab("\nCardamom")+ 
+    theme(plot.title = element_text(face="bold"))+
+   ylab(" ") + ggtitle("StDev SLA (m2.kg-1)\n"))
+ggsave("./figures/hexbin_map_SLASTDcount200.png", hexbin_slastd_corr, width = 30, 
+       height = 20, units = "cm", dpi = 300)
+
+(hexbin_panelled <- ggarrange(hexbin_sla_corr, hexbin_slastd_corr, ncol = 2))
+ggsave("./figures/hexbin_map_panel.png", hexbin_panelled, width = 50, 
        height = 20, units = "cm", dpi = 300)
 
   # heatmap (with lattice package and viridis package for colour palette) ASK CODING CLUB! ----
@@ -209,38 +234,48 @@ similarity.matrix <- apply(joined_matrix, 2, function(x)rowSums(x==joined_matrix
 diag(similarity.matrix)<-0
 
 
-  # heat scatter plot LSD PACKAGE ----
-install.packages("LSD")
-library(LSD)
-library(MASS)
+ 
+  # HEATSCATTERS ----
+  # creating numeric vectors of sla mean and sla stdev to inpu in heatscatter ----
+cardamom_sla_num <- cardamom_sla_df$sla
 
-cardamom_sla <- cardamom_sla_df$sla
-butler_sla <- butler_sla_df$specific.leaf.area
-  
-  # LSD package - heatscatter
-png("./figures/heatscatter_sla.png", width = 30, height = 20, units = "cm", res = 300)
-heatscatter <- heatscatter(cardamom_sla, butler_sla, pch = 19, cexplot = 0.5,
-                           colpal="spectral", #disco() for all color options / could set to colorblind
-                           add.contour=TRUE, main = " ",
-                         xlab="\nCardamom SLA (m2.kg-1)", ylab="\nButler SLA (m2.kg-1)")
+butler_sla_num <- butler_sla_df$specific.leaf.area
+cardamom_sla_std_num <- cardamom_sla_std_df$Standard_Deviation
+butler_sla_std_num <- butler_sla_std_df$specific.leaf.area
+
+  # LSD package ----
+png("./figures/heatscatter_sla_panelled.png", width = 50, height = 25, 
+    units = "cm", res = 300)
+par(mfrow=c(1,2), oma = c(0,2,4,2) + 0.1)
+  # SLA MEAN
+(heatscatter_sla <- heatscatter(cardamom_sla_num, butler_sla_num, pch = 19, 
+                                cexplot = 0.5, colpal="spectral", 
+                           #disco() for all color options / could set to colorblind
+                                add.contour=TRUE, main = "SLA Mean\n",
+                                xlab="\nCardamom", 
+                                ylab="\nButler"))
+  # SLA STDEV
+(heatscatter_slastd <- heatscatter(cardamom_sla_std_num, butler_sla_std_num, 
+                                  pch = 19, cexplot = 0.5, colpal = "spectral",
+                                  add.contour = TRUE, main = "SLA StDev\n", 
+                                  xlab="\nCardamom",
+                                  ylab=" "))
 dev.off()
-  
-# heatscatter with ggplot2 - NOT FINISHED TRYING (SHOULD I ADD A VERTICAL LINE ACROSS IT?) ----
 
-d <- na.omit(data.frame(x=cardamom_sla, y=butler_sla))
+  # heatscatter with ggplot2 - NOT FINISHED TRYING (SHOULD I ADD A VERTICAL LINE ACROSS IT?) ----
+
+d <- na.omit(data.frame(x=cardamom_sla_num, y=butler_sla_num))
 d <- kde2d(d$x, d$y)
 d_df <- data.frame(with(d, expand.grid(x,y)), as.vector(d$z))
 names(d_df) <- c("d_x","d_y","d_z")
 model_fit <-loess(d_z~d_x*d_y, data = d_df)
-d$pointdens <- predict(model_fit, newdata=data.frame(d_x=x, d_y=y))
-
+d$pointdens <- predict(model_fit, newdata=data.frame(d_x=d$x, d_y=d$y))
 (heatscatter_ggplot <- ggplot(d, aes(x,y,color=pointdens))+
     geom_point()+
     theme_ipsum())
                          
-
 ### HISTOGRAM AND DIFF BETWEEN HISTS ----
-
+  # SLA MEAN ----
 joined_sla_density <- joined_sla %>%
   gather(key="dataset", value="sla",-y,-x)
 
@@ -251,7 +286,19 @@ joined_sla_density <- joined_sla %>%
   scale_fill_discrete(name = "Specific Leaf Area", 
                       labels = c("Cardamom", "Butler")))
 
-  # calc diff between density areas?
+  # SLA STDEV ----
+
+joined_slastd_density <- joined_sla_std %>%
+  gather(key="dataset", value="sla_std",-x,-y)
+
+(slastd_hist <- ggplot(joined_slastd_density, aes(x=sla_std,group=dataset,
+                                                  fill=dataset))+
+    geom_histogram(bins = 100, alpha=0.4)+
+    theme_ipsum()+
+    scale_fill_discrete(name="Specific Leaf Area StDev", 
+                        labels=c("Cardamom", "Butler")))
+
+# calc diff between density areas?
 
 # 1) SLA:
 hist_sla_data <- as.data.table(ggplot_build(sla_hist)$data[1])
