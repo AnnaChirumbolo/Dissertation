@@ -133,7 +133,6 @@ plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
      main="Cardamom-Butler SLA StDev\n")
 dev.off()
 
-
 ### Joining datasets ----
 
 joined_sla <- left_join(cardamom_sla_df, butler_sla_df) 
@@ -301,63 +300,73 @@ joined_slastd_density <- joined_sla_std %>%
 
   # calc diff between HISTOGRAM areas? PANELLED PLOTS ----
   # 1) SLA:
-hist_sla_data <- as.data.table(ggplot_build(sla_hist)$data[1])
-hist_sla_data <- hist_sla_data %>%
-  select(count,xmin,xmax,group)
-sla_hist_c <- hist_sla_data[group==1]
-sla_hist_b <- hist_sla_data[group==2]
-diff_sla_hist <- merge(sla_hist_c, sla_hist_b, by=c("xmin","xmax"), suffixes = c(".c",".b"), allow.cartesian=TRUE)
+hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
+hist_slastd_data <- hist_slastd_data %>%
+  select(count, xmin, xmax, group) 
+# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
+slastd_hist_c <- hist_slastd_data[group==1]
+slastd_hist_b <- hist_slastd_data[group==2]
+diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), 
+                          suffixes = c(".c",".b"), allow.cartesian=TRUE)
     #Error in vecseq(f__, len__, if (allow.cartesian || notjoin || !anyDuplicated(f__,  : 
-    #Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
-diff_sla_hist <- diff_sla_hist[,Difference:=count.c-count.b]
-setnames(diff_sla_hist, old = c("count.c","count.b"),new = c("Cardamom","Butler"))
-diff_sla_hist1 <- melt(diff_sla_hist, id.vars = c("xmin","xmax"), measure.vars = c("Cardamom","Difference","Butler"))
+    #Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). 
+    #Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
 
-(diff_hist_plot <- ggplot(diff_sla_hist1, aes(xmin=xmin, xmax=xmax, ymax=value,ymin=0, group=variable, 
-                                         fill=variable, color=variable, alpha = 0.9))+
+diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
+setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
+                                                                "Butler"))
+diff_slastd_melt <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
+                         measure.vars = c("Cardamom","Difference","Butler"))
+
+(diff_histstd_plot <- ggplot(diff_slastd_melt, aes(xmin=xmin, xmax=xmax, 
+                                                   ymax=value,ymin=0, 
+                                                   group=variable, 
+                                         fill=variable, color=variable, 
+                                         alpha = 0.7))+
     geom_rect()+
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
     xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
-    theme(legend.title = element_blank())) # the whole length it says the difference between cardamom-butler!
-ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20, units = "cm", 
-       dpi = 300)
+    theme(legend.title = element_blank())) 
+# the whole length it says the difference between cardamom-butler!
+ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
+       units = "cm", dpi = 300)
     
-  # save the file of difference SLA to csv
-diff_hist <- write.csv(diff_dens, "difference_hist.csv")
+  # save the file of difference SLA STDEV to csv
+diff_hist <- write.csv(diff_dens, "difference_hist_slastd.csv")
 
-# 2) SLA STDEV:
+  # 2) SLA STDEV:
 hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
 hist_slastd_data <- hist_slastd_data %>%
   select(count, xmin, xmax, group)
 str(hist_slastd_data)
 slastd_hist_c <- hist_slastd_data[group==1]
 slastd_hist_b <- hist_slastd_data[group==2]
-diff_sla_hist <- merge(sla_hist_c, sla_hist_b, by=c("xmin","xmax"), suffixes = c(".c",".b"), allow.cartesian=TRUE)
+diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), suffixes = c(".c",".b"), allow.cartesian=TRUE)
 #Error in vecseq(f__, len__, if (allow.cartesian || notjoin || !anyDuplicated(f__,  : 
 #Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
-diff_sla_hist <- diff_sla_hist[,Difference:=count.c-count.b]
-setnames(diff_sla_hist, old = c("count.c","count.b"),new = c("Cardamom","Butler"))
-diff_sla_hist1 <- melt(diff_sla_hist, id.vars = c("xmin","xmax"), measure.vars = c("Cardamom","Difference","Butler"))
+diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
+setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
+                                                                "Butler"))
+diff_slastd_hist1 <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
+                          measure.vars = c("Cardamom","Difference","Butler"))
 
-(diff_hist_plot <- ggplot(diff_sla_hist1, aes(xmin=xmin, xmax=xmax, ymax=value,ymin=0, group=variable, 
+(diff_histstd_plot <- ggplot(diff_slastd_hist1, aes(xmin=xmin, xmax=xmax, ymax=value,ymin=0, group=variable, 
                                               fill=variable, color=variable, alpha = 0.9))+
     geom_rect()+
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     theme(legend.title = element_blank())) # the whole length it says the difference between cardamom-butler!
-ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20, units = "cm", 
+ggsave("./figures/Difference_hist_slastd.png", diff_histstd_plot, width = 30, height = 20, units = "cm", 
        dpi = 300)
 
 # save the file of difference SLA to csv
 diff_hist <- write.csv(diff_dens, "difference_hist.csv")
-
-
 
 ### scatterplot attempt 2 ----
 
