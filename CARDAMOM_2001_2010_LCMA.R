@@ -33,6 +33,9 @@ install.packages("PerformanceAnalytics")
 install.packages("hrbrthemes")
 install.packages("viridisLite")
 install.packages("LSD")
+install.packages("rworldmap")
+install.packages("Hmisc")
+install.packages("formattable")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -55,16 +58,25 @@ library(data.table)
 library(ggpubr)
 library(LSD)
 library(MASS) # do i need it?
+library(rworldmap)
+library(Hmisc)
+library(sp)
+library(ggExtra)
+library(formattable)
 
 ### opening netcdf, to data frame ----
-cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="sla")
-cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", varname="Standard_Deviation")
+cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
+                       varname="sla")
+cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
+                           varname="Standard_Deviation")
 
 cardamom_sla_df <- raster::as.data.frame(cardamom_sla, xy = TRUE)
 cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
 
-butler_sla <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", varname="sla")
-butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", varname ="sla_std")
+butler_sla <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
+                     varname="sla")
+butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
+                         varname ="sla_std")
 butler_sla_df <- raster::as.data.frame(butler_sla, xy = TRUE) 
 butler_sla_std_df <- raster::as.data.frame(butler_sla_std, xy=TRUE)
 
@@ -147,14 +159,14 @@ joined_sla_std <- joined_sla_std %>%
 joined_sla_noNA <- joined_sla %>%
   filter(cardamom!=0&butler!=0)
 joined_sla_nocoord <- joined_sla %>%
-  select(-x,-y) 
+  dplyr::select(-x,-y)
 joined_sla_nocoordNA <- joined_sla_nocoord %>%
   filter(cardamom!=0 & butler != 0)
 
 joined_sla_std_noNA <- joined_sla_std %>%
   filter(cardamom_std !=0 & butler_std != 0)
 joined_sla_std_nocoord <- joined_sla_std %>%
-  select(-x,-y)
+  dplyr::select(-x,-y)
 joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
   filter(cardamom!=0 & butler != 0)
 
@@ -253,6 +265,7 @@ par(mfrow=c(1,2), oma = c(0,2,4,2) + 0.1)
                                 add.contour=TRUE, main = "SLA Mean\n",
                                 xlab="\nCardamom", 
                                 ylab="\nButler"))
+
   # SLA STDEV
 (heatscatter_slastd <- heatscatter(cardamom_sla_std_num, butler_sla_std_num, 
                                   pch = 19, cexplot = 0.5, colpal = "spectral",
@@ -329,7 +342,7 @@ diff_slastd_melt <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"),
     scale_color_manual(values=c("black","black","black"))+
     xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank()))  ## figure out how to show the overlap 
 # the whole length it says the difference between cardamom-butler!
 ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
        units = "cm", dpi = 300)
@@ -368,11 +381,6 @@ ggsave("./figures/Difference_hist_slastd.png", diff_histstd_plot, width = 30, he
 # save the file of difference SLA to csv
 diff_hist <- write.csv(diff_dens, "difference_hist.csv")
 
-### scatterplot attempt 2 ----
-
-(degree_scatter <- ggplot()+
-   geom_point(cardamom_df, mapping =  aes(x,sla,color="red"))+
-   geom_point(butler_nc,mapping=aes(x,specific.leaf.area, color="blue")))
 
 
 ### scatterplot: by ID (unique lat x lon point) ----
@@ -423,6 +431,7 @@ panelled_scatter <- grid.arrange(scatter_bylat, scatter_bylon, ncol=2)
 ggsave("panel_scatter_bycoord.jpg", plot = panelled_scatter, width = 20, height = 10,
        dpi = 300)
 
+
 ### heatmap ----
 
 new_joined <- left_join(cardamom_df, butler_nc) %>%
@@ -445,8 +454,7 @@ heatmap.2(joined_wide,Colv = NA, Rowv = NA)
 
 ### COMPARING RESULT ESTIMATES ---- 
 
-difference_data <- map2(cardamom_df, butler_nc, setdiff) %>% 
-  map_int(length)
+  # BIAS - BETTER ONLY FOR REGIONAL ESTIMATIONS - for later----
 
 bias <- Metrics::bias(cardamom_sla, butler_sla) ## let's try it?? ASK CC?
 bias # gives overall rel bias, and because there's lots of NAs it gives NA as result?
@@ -456,35 +464,88 @@ butler_sla
 cardamom_sla <- cardamom_df$sla
 cardamom_sla <- as.data.frame(cardamom_sla) 
 
-## RMSE function??? ----
 
-RMSE = function(m, o){
-  sqrt(mean((m - o)^2))
-}
+# RMSE- NEED TO SET AT SAME SCALE????----
+    # SLA MEAN
+sla_rmse <- joined_sla %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
 
-rmse <- RMSE(butler_nc$sla, cardamom_df$sla)
-rmse
+# average RMSE value for MEAN SLA 8.335043
+sla_rmse_all <- joined_sla %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
 
-## PACKAGE differR ----
+    # plotting rmse sla mean only 
+(sla_rmse_plot <- ggplot(sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+(sla_rmse_marginal <- ggMarginal(sla_rmse_plot,type = "density",
+                                 color="darkred", size = 5))
+
+    # SLA STD
+
+slastd_rmse <- joined_sla_std %>%
+  mutate(rmse = sqrt((cardamom_std - butler_std)^2)) %>%
+  dplyr::select(-cardamom_std, -butler_std) %>%
+  filter(rmse!=0)
+
+# average RMSE value for STDEV SLA 
+slastd_rmse_all <- joined_sla_std %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+  # plotting rmse sla stdev only 
+(slastd_rmse_plot <- ggplot(slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat="identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab(" ")+
+    xlab("\nLongitude")+
+    labs(color="RMSE (m2.kg-1)")+
+    ggtitle("SLA StDev RMSE\n")+
+    theme(plot.title= element_text(face = "bold")))
+(slastd_rmse_marginal <- ggMarginal(slastd_rmse_plot,type = "density",
+                                 color="darkred", size = 5, margins = "y"))
+
+(rmse_panelled <- ggarrange(sla_rmse_plot, slastd_rmse_plot, ncol = 2))
+ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20, 
+       units="cm", dpi = 300)
+
+  # general RMSE formula
+  # sqrt(mean((m - o)^2)), where m is the "ref model" and o is the "observed model"
+
+rmse_all <- rbind(sla_rmse_all, slastd_rmse_all)
+
+## category Components plot ----
 
 categoryComponentsPlot(cardamom_sla, butler_sla, units = "m^2/kg")
 
-# Cross-tabulate two RasterLayer objects, or mulitiple layers in a RasterStack 
+# Cross-tabulate two RasterLayer objects, or mulitiple layers in a RasterStack ----
 # or RasterBrick to create a contingency table.
 crosstab <- crosstab(cardamom_sla,butler_nc)
 crosstab <- as.data.frame(crosstab)
 heatmap(crosstab)
 
 cardamom_sla[30,30]
-crosstabm <- crosstabm(cardamom_sla, butler_nc, percent = TRUE)
+crosstabm <- crosstabm(cardamom_sla, butler_sla, percent = TRUE)
 heatmap(crosstabm)
 
-sla_only <- new_joined %>%
-  select(-x,-y) 
+sla_only <- joined_sla %>%
+  dplyr::select(-x,-y) 
+sla_only <- as.matrix(sla_only)
  
 sla_only<- rcorr(sla_only, type="pearson")
 
-## CORRELATION CHART BETWEEN SLA PARAMETERS ----
+
+## CORRELATION CHART BETWEEN SLA PARAMETERS  ----
 
 png("correlation_chart.png", width=30, height=20, units = "cm", res = 300)
 dev.off()
@@ -500,9 +561,40 @@ dev.off()
 #On the top of the diagonal : the value of the correlation plus the significance level as stars
 #Each significance level is associated to a symbol : p-values(0, 0.001, 0.01, 0.05, 0.1, 1) <=> symbols(“***”, “**”, “*”, “.”, " “)
 
-# Get some colors
-sla_only <- as.matrix(sla_only)
-col<- colorRampPalette(c("blue", "white", "red"))(20)
-heatmap(x = sla_only, col = col, symm = TRUE)
 
+
+## R SQUARED CALCULATIONS AND CSV OUTPUT ----
+  
+  ## steps to calculate R2:
+  #rss <- sum((preds - actual) ^ 2)  ## residual sum of squares
+  #tss <- sum((actual - mean(actual)) ^ 2)  ## total sum of squares
+  #rsq <- 1 - rss/tss
+
+  # SLA mean
+sla_rsq <- joined_sla %>%
+  filter(cardamom!=0, butler!=0) %>%
+  summarise(rss = sum((cardamom - butler)^2),     ## residual sum of squares
+            tss = sum((butler - mean(butler))^2), ## total sum of squares
+            rsq = 1- rss/tss)
+  # SLA STDEV
+slastd_rsq <- joined_sla_std %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  summarise(rss = sum((cardamom_std - butler_std)^2),
+            tss = sum((butler_std - mean(butler_std))^2),
+            rsq = 1- rss/tss)
+
+# a negative R2 means that the chosen model (with its constraints) fits the 
+# data really poorly.
+
+rsq_results <- rbind(sla_rsq, slastd_rsq)
+#write.csv(rsq_results, "R2_results.csv")
+
+### table with r2 and rmse ----
+
+stat_world <- cbind(rsq_results,rmse_all)
+stat_world <- stat_world %>%
+  dplyr::select(-tss,-rss) %>%
+  mutate(sla=c("Mean", "StDev"))
+
+formattable(stat_world) # to create the table
 
