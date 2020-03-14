@@ -6,16 +6,13 @@
 
 ## things to do 
   
-# maps - add scales
-# diff map - change scale colouring TO DO!
+## STIPPLING!!!!!!!!
 
 # scatter plot - make heatmap --| ASK CODING CLUB / MADE A HEATSCATTER (BETTER REPR) / ASK IF I COULD DO IT WITH THE MAP OF THE WORLD?
 
-# correlation chart - use density maps to find difference between histograms, to be calculated DONE
-
-  # for results (to put in table and have the figures showing)
+# for results (to put in table and have the figures showing)
 # matrix of map, see how they differ from each other by each grid point 
-# calculation of bias / RMSE / R2 - visual and tabular repr.
+# calculation of bias / RMSE / R2 - visual and tabular repr. r2 in the negative values...normal?
 
 # MAKING MASKS
   # splitting the globe, by latitudinal bands to observe differences by biome   
@@ -63,6 +60,7 @@ library(Hmisc)
 library(sp)
 library(ggExtra)
 library(formattable)
+
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
@@ -287,7 +285,7 @@ d$pointdens <- predict(model_fit, newdata=data.frame(d_x=d$x, d_y=d$y))
     theme_ipsum())
                          
 
-  # HISTOGRAM AND DIFF BETWEEN HISTS ----
+  # HISTOGRAM AND DIFF BETWEEN HISTS ---- need to do the diagonal bars where the bins overlap
   # SLA MEAN ----
 joined_sla_density <- joined_sla %>%
   gather(key="dataset", value="sla",-y,-x)
@@ -587,6 +585,7 @@ slastd_rsq <- joined_sla_std %>%
 # data really poorly.
 
 rsq_results <- rbind(sla_rsq, slastd_rsq)
+
 #write.csv(rsq_results, "R2_results.csv")
 
 ### table with r2 and rmse ----
@@ -597,4 +596,42 @@ stat_world <- stat_world %>%
   mutate(sla=c("Mean", "StDev"))
 
 formattable(stat_world) # to create the table
+
+## the R2 when im doing a linear regression... ----
+
+lm_sla <- lm(butler ~ cardamom, data = joined_sla)
+plot(lm_sla)
+summary(lm_sla)$r.squared
+# Multiple R-squared:  0.0003106,	Adjusted R-squared:  0.0002266 
+
+lm_slastd <- lm(butler_std  ~ cardamom_std, data = joined_sla_std)
+plot(lm_slastd)
+summary(lm_slastd) 
+# Multiple R-squared:  0.0002966,	Adjusted R-squared:  0.0002127 
+
+######################splitting of the world####################################
+
+## do splitting by latitudes ----
+
+  # tropics SLA MEAN ----
+trpmat <- matrix(data <- c(-180,180,-23.5,23.5), nrow = 2, ncol = 2,
+                 byrow = TRUE)
+trpext <- extent(trpmat)
+trp <- crop(cardamom_sla, trpext)
+plot(trp[[1]]) # tropical lats
+  # tropics SLA STD ----
+trpstd<- crop(cardamom_sla_std, trpext)
+plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png
+  
+  # temperate ----
+tmpmat <- matrix(data <- c(-180,180,-66.5,66.5), nrow = 2, ncol = 2, 
+                 byrow = TRUE)
+tmpext <- extent(tmpmat)
+tmp <- crop(cardamom_sla, tmpext)
+plot(tmp[[1]])
+trp_na[] <- NA
+tmp <- mask(tmp,trp_na) 
+
+
+
 
