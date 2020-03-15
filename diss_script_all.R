@@ -635,7 +635,8 @@ sla_rmse_byrow <- sla_r2 %>%
 (sla_rmse_plot1 <- ggplot(sla_rmse_byrow, aes(x,y,color=rmse_byrow))+
    geom_jitter(stat = "identity")+
    theme_classic()+
-   scale_color_gradient(low = "yellow", high = "red4")+
+   scale_color_gradient(low = "yellow", high = "red4",
+                        limits=c(0,20))+
    ylab("Latitude\n")+
    xlab("\nLongitude")+
    labs(color=" ")+
@@ -661,7 +662,8 @@ slastd_rmse_byrow <- slastd_r2 %>%
 (slastd_rmse_plot1 <- ggplot(slastd_rmse_byrow, aes(x,y,color=rmse_std_byrow))+
     geom_jitter(stat = "identity")+
     theme_classic()+
-    scale_color_gradient(low = "yellow", high = "red4")+
+    scale_color_gradient(low = "yellow", high = "red4",
+                         limits = c(0,20))+
     ylab("Latitude\n")+
     xlab("\nLongitude")+
     labs(color=" ")+
@@ -670,7 +672,8 @@ slastd_rmse_byrow <- slastd_r2 %>%
 
 ## panel rmse plots and save ----
 (rmse_panelled <- ggarrange(sla_rmse_plot1, slastd_rmse_plot1, ncol = 2))
-
+ggsave("./figures/panelled_rmse.png", rmse_panelled, width = 50, height = 20,
+       units = "cm", dpi = 300)
 
 ## joining rmse results ----
 rmse <- as.data.frame(c(4.274008,2.727371))
