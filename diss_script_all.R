@@ -83,6 +83,7 @@ png("./figures/plot_sla_DIFFSCALES.png", width = 50, height = 20, units = "cm", 
 par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1, new=FALSE)
 plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
      main="Cardamom\n")
+#raster::image(cardamom_sla[[1]], asp=NA, col= rev(brewer.pal(10,"RdBu")))
 plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")),
      legend.args=list(text='\nSpecific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3),
      main="Butler\n")
@@ -242,12 +243,9 @@ joined_matrix <- as.matrix(joined_sla_nocoord)
 similarity.matrix <- apply(joined_matrix, 2, function(x)rowSums(x==joined_matrix))
 diag(similarity.matrix)<-0
 
-
- 
   # HEATSCATTERS ----
   # creating numeric vectors of sla mean and sla stdev to inpu in heatscatter ----
 cardamom_sla_num <- cardamom_sla_df$sla
-
 butler_sla_num <- butler_sla_df$specific.leaf.area
 cardamom_sla_std_num <- cardamom_sla_std_df$Standard_Deviation
 butler_sla_std_num <- butler_sla_std_df$specific.leaf.area
@@ -609,28 +607,202 @@ plot(lm_slastd)
 summary(lm_slastd) 
 # Multiple R-squared:  0.0002966,	Adjusted R-squared:  0.0002127 
 
-######################splitting of the world####################################
 
-## do splitting by latitudes ----
+################################################################################
+#                           splitting of the world                             #
+################################################################################
 
-  # tropics SLA MEAN ----
+### do splitting by latitude ### ----
+
+  # tropics ----
+# cardamom:
+  # sla mean
 trpmat <- matrix(data <- c(-180,180,-23.5,23.5), nrow = 2, ncol = 2,
                  byrow = TRUE)
 trpext <- extent(trpmat)
 trp <- crop(cardamom_sla, trpext)
 plot(trp[[1]]) # tropical lats
-  # tropics SLA STD ----
+tropicsSLA_df <- raster::as.data.frame(trp, xy=TRUE)
+raster::zoom(trp)
+  # sla std
 trpstd<- crop(cardamom_sla_std, trpext)
-plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png
-  
+plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png+
+tropicsSTD_df <- raster::as.data.frame(trpstd, xy=TRUE)
+
+# butler: 
+  # sla mean
+trp_b <- crop(butler_sla, trpext)
+trp_b_df <- raster::as.data.frame(trp_b, xy=TRUE)
+  # sla std
+trp_b_std <- crop(butler_sla_std, trpext)
+trp_b_std_df <- raster::as.data.frame(trp_b_std, xy=TRUE)
+
+# joined tropics cardamom + butler
+trpSLA <- left_join(tropicsSLA_df,trp_b_df)
+trpSLA <- trpSLA %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area)
+trpSTD <- left_join(tropicsSTD_df, trp_b_std_df)
+trpSTD <- trpSTD %>%
+  rename("cardamom_std" =Standard_Deviation, "butler_std" = specific.leaf.area)
+
+  # subtropics ----
+# cardamom:
+  # sla mean
+sbtrpmatN <- matrix(data <- c(-180,23.5,180,35), nrow = 2, ncol = 2)
+sbtrpextN <- extent(sbtrpmatN)  
+sbtrpN <- crop(cardamom_sla, sbtrpextN)
+plot(sbtrpN[[1]])
+
+sbtrpN_df <- raster::as.data.frame(sbtrpN, xy = TRUE)
+
+sbtrpmatS <- matrix(data <- c(-180,-23.5,180,-35), nrow = 2, ncol = 2)
+sbtrpextS <- extent(sbtrpmatS)
+sbtrpS <- crop(cardamom_sla, sbtrpextS)
+plot(sbtrpS[[1]])
+
+sbtrpS_df <- raster::as.data.frame(sbtrpS, xy = TRUE)
+
+sbtrp_SLAc<- left_join(sbtrpN_df, sbtrpS_df)  
+sbtrp_SLAc <- sbtrp_c %>%
+  rename("cardamom" = sla)
+
+  # sla std 
+sbtrp_std_N <- crop(cardamom_sla_std, sbtrpextN)
+sbtrpSTD_c_N <- raster::as.data.frame(sbtrp_std_N, xy=TRUE)
+sbtrp_std_S <- crop(cardamom_sla_std, sbtrpextS)
+sbtrpSTD_c_S <- raster::as.data.frame(sbtrp_std_S, xy=TRUE)
+sbtrpSTD_c <- left_join(sbtrpSTD_c_N, sbtrpSTD_c_S)
+sbtrpSTD_c <- sbtrpSTD_c %>%
+  rename("cardamom_std" = Standard_Deviation )
+
+# butler:
+  # sla mean
+sbtrpN_b <-crop(butler_sla, sbtrpextN)  
+sbtrpS_b <- crop(butler_sla, sbtrpextS)
+sbtrp_bN_df <- raster::as.data.frame(sbtrpN_b, xy=TRUE)
+sbtrp_bS_df <- raster::as.data.frame(sbtrpN_b, xy =TRUE)
+sbtrp_b <- left_join(sbtrp_bN_df, sbtrp_bS_df)
+sbtrp_b <- sbtrp_b %>%
+  rename("butler"=specific.leaf.area)
+
+  # sla std
+sbtrpSTD_b_N <- crop(butler_sla_std, sbtrpextN)
+sbtrpSTD_b_S <- crop(butler_sla_std, sbtrpextS)
+sbtrpSTD_b_N_df <- raster::as.data.frame(sbtrpSTD_b_N, xy = TRUE)
+sbtrpSTD_b_S_df <- raster::as.data.frame(sbtrpSTD_b_S, xy =TRUE)
+sbtrpSTD_b <- left_join(sbtrpSTD_b_N_df, sbtrpSTD_b_S_df)
+sbtrpSTD_b <- sbtrpSTD_b %>%
+  rename("butler_std"= specific.leaf.area)
+
+# subtropics joined cardamom + butler
+sbtrp_joined_SLA <- left_join(sbtrp_c, sbtrp_b)
+sbtrp_joined_STD <- left_join(sbtrpSTD_c, sbtrpSTD_b)
+
   # temperate ----
-tmpmat <- matrix(data <- c(-180,180,-66.5,66.5), nrow = 2, ncol = 2, 
+#cardamom:
+  # sla mean
+tmpmatN <- matrix(data <- c(-180,180,35,66.5), nrow = 2, ncol = 2, 
                  byrow = TRUE)
-tmpext <- extent(tmpmat)
-tmp <- crop(cardamom_sla, tmpext)
-plot(tmp[[1]])
-trp_na[] <- NA
-tmp <- mask(tmp,trp_na) 
+tmpextN<- extent(tmpmatN)
+tmpmatS <- matrix(data <- c(-180, 180, -35,-66.5), nrow = 2, ncol = 2, 
+                  byrow=TRUE)
+tmpextS <- extent(tmpmat2)
+tmpN <- crop(cardamom_sla, tmpextN)
+tmpS <- crop(cardamom_sla, tmpextS)
+plot(tmpN[[1]])
+plot(tmpS[[1]])
+
+tmp_c_N_df <- raster::as.data.frame(tmpN, xy=TRUE)
+tmp_c_S_df <- raster::as.data.frame(tmpS, xy = TRUE)
+tmp_c_df <- left_join(tmp_c_N_df, tmp_c_S_df)
+
+  # sla std 
+tmpSTD_c_N <- crop(cardamom_sla_std, tmpextN)
+tmpSTD_c_S <- crop(cardamom_sla_std, tmpextS)
+tmpSTD_c_N_df <- raster::as.data.frame(tmpSTD_c_N, xy =TRUE)
+tmpSTD_c_S_df <- raster::as.data.frame(tmpSTD_c_S, xy =TRUE)
+tmpSTD_c_df <- left_join(tmpSTD_c_N_df, tmpSTD_c_S_df)
+
+# bulter 
+  # sla mean 
+tmp_b_N <- crop(butler_sla, tmpextN)
+tmp_b_S <- crop(butler_sla, tmpextS)
+tmp_b_N_df <- raster::as.data.frame(tmp_b_N, xy = TRUE)
+tmp_b_S_df <- raster::as.data.frame(tmp_b_S, xy =TRUE)
+tmp_b_df <- left_join(tmp_b_N_df, tmp_b_S_df)
+tmp_b_df <- tmp_b_df %>%
+  rename("butler" = specific.leaf.area)
+
+  # sla std 
+tmpSTD_b_N <- crop(butler_sla_std, tmpextN)
+tmpSTD_b_S <- crop(butler_sla_std, tmpextS)
+tmpSTD_b_N_df <- raster::as.data.frame(tmpSTD_b_N, xy = TRUE)
+tmpSTD_b_S_df <- raster::as.data.frame(tmpSTD_b_S, xy = TRUE)
+tmpSTD_b_df <- left_join(tmpSTD_b_N_df, tmpSTD_b_S_df)
+tmpSTD_b_df <- tmpSTD_b_df %>%
+  rename("butler_std" = specific.leaf.area)
+
+  # poles ----
+plN <- matrix(data <- c(-180,66.5,180,90), nrow = 2, ncol=2)
+#setMinMax(cardamom_sla[[1]])
+plextN <- extent(plN)
+plS <- matrix(data <- c(-180,-66.5,180,-90), nrow = 2, ncol = 2)
+plextS <- extent(plS)
+plN <- crop(cardamom_sla, plextN)
+plot(plN[[1]])
+plS <- crop(cardamom_sla, plextS)
+plot(plS[[1]]) # no data in S hemisphere
+
+
+
+
+
+# heatscatter tropics ----
+
+trp_c_sla_n <- trpSLA$cardamom
+trp_b_sla_n <- trpSLA$butler
+
+(heatsc_sla_trp <- heatscatter(trp_c_sla_n, trp_b_sla_n, pch = 19, 
+                                cexplot = 0.5, colpal="spectral", 
+                                #disco() for all color options / could set to colorblind
+                                add.contour=TRUE, main = "SLA Mean\n",
+                                xlab="\nCardamom", 
+                                ylab="\nButler"))
+
+corr_trp_sla <- chart.Correlation(trpSLA)
+
+# regression tropics ----
+
+lm_tropics_sla <- lm(butler ~ cardamom, data = trpSLA)
+plot(lm_tropics_sla)
+summary(lm_tropics_sla)
+# Multiple R-squared:  0.1271,	Adjusted R-squared:  0.1269 
+
+# rmse tropics ----
+
+  # rmse by row
+trp_sla_rmse <- trpSLA %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
+
+  # plotting rmse by row 
+(trps_sla_rmse_plot <- ggplot(trp_sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+
+  # average rmse all: 9.464195
+trps_sla_rmse_av <- trpSLA %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+
 
 
 
