@@ -12,7 +12,7 @@
 
 # for results (to put in table and have the figures showing)
 # matrix of map, see how they differ from each other by each grid point 
-# calculation of bias / RMSE / R2 - visual and tabular repr. r2 in the negative values...normal?
+# calculation of bias / RMSE / R2 - visual and tabular repr.
 
 # MAKING MASKS
   # splitting the globe, by latitudinal bands to observe differences by biome   
@@ -461,70 +461,12 @@ cardamom_sla <- cardamom_df$sla
 cardamom_sla <- as.data.frame(cardamom_sla) 
 
 
-# RMSE- NEED TO SET AT SAME SCALE????----
-    # SLA MEAN
-sla_rmse <- joined_sla %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
-
-# average RMSE value for MEAN SLA 8.335043
-sla_rmse_all <- joined_sla %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-    # plotting rmse sla mean only 
-(sla_rmse_plot <- ggplot(sla_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-(sla_rmse_marginal <- ggMarginal(sla_rmse_plot,type = "density",
-                                 color="darkred", size = 5))
-
-    # SLA STD
-
-slastd_rmse <- joined_sla_std %>%
-  mutate(rmse = sqrt((cardamom_std - butler_std)^2)) %>%
-  dplyr::select(-cardamom_std, -butler_std) %>%
-  filter(rmse!=0)
-
-# average RMSE value for STDEV SLA 
-slastd_rmse_all <- joined_sla_std %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-  # plotting rmse sla stdev only 
-(slastd_rmse_plot <- ggplot(slastd_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat="identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab(" ")+
-    xlab("\nLongitude")+
-    labs(color="RMSE (m2.kg-1)")+
-    ggtitle("SLA StDev RMSE\n")+
-    theme(plot.title= element_text(face = "bold")))
-(slastd_rmse_marginal <- ggMarginal(slastd_rmse_plot,type = "density",
-                                 color="darkred", size = 5, margins = "y"))
-
-(rmse_panelled <- ggarrange(sla_rmse_plot, slastd_rmse_plot, ncol = 2))
-ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20, 
-       units="cm", dpi = 300)
-
-  # general RMSE formula
-  # sqrt(mean((m - o)^2)), where m is the "ref model" and o is the "observed model"
-
-rmse_all <- rbind(sla_rmse_all, slastd_rmse_all)
 
 ## category Components plot ----
 
 categoryComponentsPlot(cardamom_sla, butler_sla, units = "m^2/kg")
 
-# Cross-tabulate two RasterLayer objects, or mulitiple layers in a RasterStack ----
+## Cross-tabulate two RasterLayer objects, or mulitiple layers in a RasterStack ----
 # or RasterBrick to create a contingency table.
 crosstab <- crosstab(cardamom_sla,butler_nc)
 crosstab <- as.data.frame(crosstab)
@@ -559,54 +501,202 @@ dev.off()
 
 
 
-## R SQUARED CALCULATIONS AND CSV OUTPUT ----
-  
-  ## steps to calculate R2:
-  #rss <- sum((preds - actual) ^ 2)  ## residual sum of squares
-  #tss <- sum((actual - mean(actual)) ^ 2)  ## total sum of squares
-  #rsq <- 1 - rss/tss
 
-  # SLA mean
-sla_rsq <- joined_sla %>%
+### R SQUARED CALCULATIONS AND CSV OUTPUT ----
+# Step by step calculation of R2 value sla mean/std correlation ----
+# sla mean ----
+sla_r2 <- joined_sla
+sla_r2 <- sla_r2 %>%
   filter(cardamom!=0, butler!=0) %>%
-  summarise(rss = sum((cardamom - butler)^2),     ## residual sum of squares
-            tss = sum((butler - mean(butler))^2), ## total sum of squares
-            rsq = 1- rss/tss)
-  # SLA STDEV
-slastd_rsq <- joined_sla_std %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# resulting R2: 0.0003105955
+
+# sla stdev ---- 
+
+slastd_r2 <- joined_sla_std
+slastd_r2 <- slastd_r2 %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
-  summarise(rss = sum((cardamom_std - butler_std)^2),
-            tss = sum((butler_std - mean(butler_std))^2),
-            rsq = 1- rss/tss)
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# result for sla stdev r2: 0.0002966 
 
-# a negative R2 means that the chosen model (with its constraints) fits the 
-# data really poorly.
+# joined sla r2 results for sla mean and sla stdev ----
 
-rsq_results <- rbind(sla_rsq, slastd_rsq)
+r2 <- as.data.frame(c(0.0003105955, 0.0002966)) # R2 results - global
+r2 <- r2 %>%
+  rename("r2" = 1) %>%
+  mutate(parameter = c("SLA mean", "SLA StDev"))
 
 #write.csv(rsq_results, "R2_results.csv")
 
-### table with r2 and rmse ----
+# RMSE- NEED TO SET AT SAME SCALE????----
+# SLA MEAN
+sla_rmse <- joined_sla %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
 
-stat_world <- cbind(rsq_results,rmse_all)
-stat_world <- stat_world %>%
-  dplyr::select(-tss,-rss) %>%
-  mutate(sla=c("Mean", "StDev"))
+# average RMSE value for MEAN SLA 8.335043
+sla_rmse_all <- joined_sla %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
 
+# plotting rmse sla mean only 
+(sla_rmse_plot <- ggplot(sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+(sla_rmse_marginal <- ggMarginal(sla_rmse_plot,type = "density",
+                                 color="darkred", size = 5))
+
+# SLA STD
+
+slastd_rmse <- joined_sla_std %>%
+  mutate(rmse = sqrt((cardamom_std - butler_std)^2)) %>%
+  dplyr::select(-cardamom_std, -butler_std) %>%
+  filter(rmse!=0)
+
+# average RMSE value for STDEV SLA 
+slastd_rmse_all <- joined_sla_std %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# plotting rmse sla stdev only 
+(slastd_rmse_plot <- ggplot(slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat="identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab(" ")+
+    xlab("\nLongitude")+
+    labs(color="RMSE (m2.kg-1)")+
+    ggtitle("SLA StDev RMSE\n")+
+    theme(plot.title= element_text(face = "bold")))
+(slastd_rmse_marginal <- ggMarginal(slastd_rmse_plot,type = "density",
+                                    color="darkred", size = 5, margins = "y"))
+
+(rmse_panelled <- ggarrange(sla_rmse_plot, slastd_rmse_plot, ncol = 2))
+ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20, 
+       units="cm", dpi = 300)
+
+# general RMSE formula
+# sqrt(mean((m - o)^2)), where m is the "ref model" and o is the "observed model"
+
+rmse_all <- rbind(sla_rmse_all, slastd_rmse_all)
+
+
+## trial for other way to calculate rmse ----
+# calculation of the residual - difference between estimated and actual val of the model
+# how much a model disagrees with the actual data
+# sla mean rmse ----
+
+sla_rmse <- sla_r2 %>%
+  mutate(residuals = butler - new_b_val, 
+         resid2 = residuals^2,
+         sum_resid2 = sum(resid2),
+         mean_sum_resid2 = sum_resid2/(11910-1),
+         rmse = sqrt(mean_sum_resid2))
+# sla mean rmse: 4.274008
+
+sla_rmse_byrow <- sla_r2 %>%
+  mutate(residuals = butler - new_b_val,
+         resid2 = residuals^2, 
+      #   mean_resid2 = resid2 / (11910-1), a bit unsure about this? whether to divide it by the dof if there's actually no mean, because the mean it's itself in each single data point
+         rmse_byrow = sqrt(resid2))
+
+# plotting sla mean rmse ----
+(sla_rmse_plot1 <- ggplot(sla_rmse_byrow, aes(x,y,color=rmse_byrow))+
+   geom_jitter(stat = "identity")+
+   theme_classic()+
+   scale_color_gradient(low = "yellow", high = "red4")+
+   ylab("Latitude\n")+
+   xlab("\nLongitude")+
+   labs(color=" ")+
+   ggtitle("Mean SLA RMSE\n")+
+   theme(plot.title = element_text(face = "bold")))
+
+# sla stdev rmse ----
+slastd_rmse <- slastd_r2 %>%
+  mutate(resid_std = butler_std - new_bstd_val,
+         resid_std2 = resid_std^2, 
+         sum_resid_std2 = sum(resid_std2),
+         mean_sum_resid_std2 = sum_resid_std2/(11910-1),
+         rmse_std = sqrt(mean_sum_resid_std2))
+# sla std rmse: 2.727371
+
+# sla stdev rmse by row ----
+
+slastd_rmse_byrow <- slastd_r2 %>%
+  mutate(resid_std = butler_std - new_bstd_val, 
+         resid_std2 = resid_std^2,
+         rmse_std_byrow = sqrt(resid_std2))
+
+(slastd_rmse_plot1 <- ggplot(slastd_rmse_byrow, aes(x,y,color=rmse_std_byrow))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "red4")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("SLA StDev RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+
+## panel rmse plots and save ----
+(rmse_panelled <- ggarrange(sla_rmse_plot1, slastd_rmse_plot1, ncol = 2))
+
+
+## joining rmse results ----
+rmse <- as.data.frame(c(4.274008,2.727371))
+rmse <- rmse %>%
+  rename("rmse"=1)
+
+### global: table with r2 and rmse ----
+
+stat_world <- cbind(r2,rmse)
 formattable(stat_world) # to create the table
 
-## the R2 when im doing a linear regression... ----
-
-lm_sla <- lm(butler ~ cardamom, data = joined_sla)
-plot(lm_sla)
-summary(lm_sla)$r.squared
+## the R2 when im doing a linear regression - NOT BEING USED ATM ----
+#lm_sla <- lm(butler ~ cardamom, data = joined_sla)
+#plot(lm_sla)
+#summary(lm_sla)$r.squared
 # Multiple R-squared:  0.0003106,	Adjusted R-squared:  0.0002266 
 
-lm_slastd <- lm(butler_std  ~ cardamom_std, data = joined_sla_std)
-plot(lm_slastd)
-summary(lm_slastd) 
-# Multiple R-squared:  0.0002966,	Adjusted R-squared:  0.0002127 
+#lm_slastd <- lm(butler_std  ~ cardamom_std, data = joined_sla_std)
+#plot(lm_slastd)
+#summary(lm_slastd) 
+# Multiple R-squared: ,	Adjusted R-squared:  0.0002127 
 
+
+
+
+### should i be doing t-test and f-test for sla mean and std respectively? could do 
 
 ################################################################################
 #                           splitting of the world                             #
