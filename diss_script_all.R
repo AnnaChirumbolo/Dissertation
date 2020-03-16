@@ -703,10 +703,10 @@ formattable(stat_world) # to create the table
 
 ################################################################################
 #                           splitting of the world                             #
+#               -- for these also need to calculate the bias!!! ---            #
 ################################################################################
 
-### do splitting by latitude ### ----
-
+#### do splitting by latitude ####
   # tropics ----
 # cardamom:
   # sla mean
@@ -740,41 +740,53 @@ trpSTD <- trpSTD %>%
 
   # subtropics ----
 # cardamom:
-  # sla mean
+  # sla mean 
 sbtrpmatN <- matrix(data <- c(-180,23.5,180,35), nrow = 2, ncol = 2)
 sbtrpextN <- extent(sbtrpmatN)  
 sbtrpN <- crop(cardamom_sla, sbtrpextN)
 plot(sbtrpN[[1]])
-
 sbtrpN_df <- raster::as.data.frame(sbtrpN, xy = TRUE)
-
 sbtrpmatS <- matrix(data <- c(-180,-23.5,180,-35), nrow = 2, ncol = 2)
 sbtrpextS <- extent(sbtrpmatS)
 sbtrpS <- crop(cardamom_sla, sbtrpextS)
 plot(sbtrpS[[1]])
-
 sbtrpS_df <- raster::as.data.frame(sbtrpS, xy = TRUE)
 
-sbtrp_SLAc<- left_join(sbtrpN_df, sbtrpS_df)  
-sbtrp_SLAc <- sbtrp_c %>%
-  rename("cardamom" = sla)
+# merging two datasets from two hemispheres to have them in one dataframe
+sbtrp_c <- merge(sbtrpN_df, sbtrpS_df, by=c("x", "y", "sla"), all=TRUE) 
+# this works 
+sbtrp_c <- sbtrp_c %>% rename("cardamom" = sla)
+  # plotting the two strips of latitude of subtropics
+(trial <- ggplot(sbtrpSTD_b, aes(x,y,color=butler_std))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
 
   # sla std 
 sbtrp_std_N <- crop(cardamom_sla_std, sbtrpextN)
 sbtrpSTD_c_N <- raster::as.data.frame(sbtrp_std_N, xy=TRUE)
 sbtrp_std_S <- crop(cardamom_sla_std, sbtrpextS)
 sbtrpSTD_c_S <- raster::as.data.frame(sbtrp_std_S, xy=TRUE)
-sbtrpSTD_c <- left_join(sbtrpSTD_c_N, sbtrpSTD_c_S)
+sbtrpSTD_c <- merge(sbtrpSTD_c_N, sbtrpSTD_c_S, 
+                    by=c("x","y","Standard_Deviation"), all = TRUE)
 sbtrpSTD_c <- sbtrpSTD_c %>%
   rename("cardamom_std" = Standard_Deviation )
 
 # butler:
   # sla mean
-sbtrpN_b <-crop(butler_sla, sbtrpextN)  
+sbtrpN_b <- crop(butler_sla, sbtrpextN)  
+plot(sbtrpN_b[[1]])
 sbtrpS_b <- crop(butler_sla, sbtrpextS)
+plot(sbtrpS_b[[1]])
 sbtrp_bN_df <- raster::as.data.frame(sbtrpN_b, xy=TRUE)
-sbtrp_bS_df <- raster::as.data.frame(sbtrpN_b, xy =TRUE)
-sbtrp_b <- left_join(sbtrp_bN_df, sbtrp_bS_df)
+sbtrp_bS_df <- raster::as.data.frame(sbtrpS_b, xy =TRUE)
+sbtrp_b <- merge(sbtrp_bN_df, sbtrp_bS_df, by=c("x","y", "specific.leaf.area"),
+                 all = TRUE)
 sbtrp_b <- sbtrp_b %>%
   rename("butler"=specific.leaf.area)
 
@@ -783,13 +795,15 @@ sbtrpSTD_b_N <- crop(butler_sla_std, sbtrpextN)
 sbtrpSTD_b_S <- crop(butler_sla_std, sbtrpextS)
 sbtrpSTD_b_N_df <- raster::as.data.frame(sbtrpSTD_b_N, xy = TRUE)
 sbtrpSTD_b_S_df <- raster::as.data.frame(sbtrpSTD_b_S, xy =TRUE)
-sbtrpSTD_b <- left_join(sbtrpSTD_b_N_df, sbtrpSTD_b_S_df)
+sbtrpSTD_b <- merge(sbtrpSTD_b_N_df, sbtrpSTD_b_S_df, 
+                    by = c("x","y","specific.leaf.area"),
+                    all = TRUE)
 sbtrpSTD_b <- sbtrpSTD_b %>%
   rename("butler_std"= specific.leaf.area)
 
 # subtropics joined cardamom + butler
 sbtrp_joined_SLA <- left_join(sbtrp_c, sbtrp_b)
-sbtrp_joined_STD <- left_join(sbtrpSTD_c, sbtrpSTD_b)
+sbtrp_joined_STD <- merge(sbtrpSTD_c, sbtrpSTD_b, by = c("x","y"), all=TRUE)
 
   # temperate ----
 #cardamom:
@@ -807,22 +821,27 @@ plot(tmpS[[1]])
 
 tmp_c_N_df <- raster::as.data.frame(tmpN, xy=TRUE)
 tmp_c_S_df <- raster::as.data.frame(tmpS, xy = TRUE)
-tmp_c_df <- left_join(tmp_c_N_df, tmp_c_S_df)
-
+tmp_c_df <- merge(tmp_c_N_df, tmp_c_S_df, by = c("x","y","sla"), all = TRUE)
+tmp_c_df <- tmp_c_df %>% rename("cardamom"= sla)
+  
   # sla std 
 tmpSTD_c_N <- crop(cardamom_sla_std, tmpextN)
 tmpSTD_c_S <- crop(cardamom_sla_std, tmpextS)
 tmpSTD_c_N_df <- raster::as.data.frame(tmpSTD_c_N, xy =TRUE)
 tmpSTD_c_S_df <- raster::as.data.frame(tmpSTD_c_S, xy =TRUE)
-tmpSTD_c_df <- left_join(tmpSTD_c_N_df, tmpSTD_c_S_df)
+tmpSTD_c_df <- merge(tmpSTD_c_N_df, tmpSTD_c_S_df, 
+                     by = c("x","y","Standard_Deviation"), 
+                     all = TRUE)
+tmpSTD_c_df <- tmpSTD_c_df %>% rename("cardamom_std" = Standard_Deviation)
 
 # bulter 
   # sla mean 
 tmp_b_N <- crop(butler_sla, tmpextN)
 tmp_b_S <- crop(butler_sla, tmpextS)
 tmp_b_N_df <- raster::as.data.frame(tmp_b_N, xy = TRUE)
-tmp_b_S_df <- raster::as.data.frame(tmp_b_S, xy =TRUE)
-tmp_b_df <- left_join(tmp_b_N_df, tmp_b_S_df)
+tmp_b_S_df <- raster::as.data.frame(tmp_b_S, xy = TRUE)
+tmp_b_df <- merge(tmp_b_N_df, tmp_b_S_df, by = c("x","y","specific.leaf.area"),
+                  all = TRUE)
 tmp_b_df <- tmp_b_df %>%
   rename("butler" = specific.leaf.area)
 
@@ -831,55 +850,132 @@ tmpSTD_b_N <- crop(butler_sla_std, tmpextN)
 tmpSTD_b_S <- crop(butler_sla_std, tmpextS)
 tmpSTD_b_N_df <- raster::as.data.frame(tmpSTD_b_N, xy = TRUE)
 tmpSTD_b_S_df <- raster::as.data.frame(tmpSTD_b_S, xy = TRUE)
-tmpSTD_b_df <- left_join(tmpSTD_b_N_df, tmpSTD_b_S_df)
+tmpSTD_b_df <- merge(tmpSTD_b_N_df, tmpSTD_b_S_df, 
+                     by = c("x","y","specific.leaf.area"), all = TRUE)
 tmpSTD_b_df <- tmpSTD_b_df %>%
   rename("butler_std" = specific.leaf.area)
 
+## joining cardamom and butler for sla mean and stdev of temperate regions
+tmp_sla <- left_join(tmp_c_df,tmp_b_df)
+tmp_slastd <- left_join(tmpSTD_c_df, tmpSTD_b_df)
+
   # poles ----
+  # only data available in N hemisphere
+# cardamom
+# sla mean
 plN <- matrix(data <- c(-180,66.5,180,90), nrow = 2, ncol=2)
-#setMinMax(cardamom_sla[[1]])
 plextN <- extent(plN)
-plS <- matrix(data <- c(-180,-66.5,180,-90), nrow = 2, ncol = 2)
-plextS <- extent(plS)
-plN <- crop(cardamom_sla, plextN)
-plot(plN[[1]])
-plS <- crop(cardamom_sla, plextS)
-plot(plS[[1]]) # no data in S hemisphere
+plN_c <- crop(cardamom_sla, plextN)
+plot(plN_c[[1]])
+plN_c_df <- raster::as.data.frame(plN_c, xy= TRUE)
+plN_c_df <- plN_c_df %>% rename("cardamom" = sla)
+
+# sla stdev
+plN_slastd_c <- crop(cardamom_sla_std, plextN)
+plot(plN_slastd_c[[1]])
+plN_slastd_c_df <- raster::as.data.frame(plN_slastd_c, xy = TRUE)
+plN_slastd_c_df <- plN_slastd_c_df %>% 
+  rename("cardamom_std" = Standard_Deviation)
+
+# butler
+# sla mean
+plN_b <- crop(butler_sla, plextN)
+plot(plN_b[[1]])
+plN_b_df <- raster::as.data.frame(plN_b, xy = TRUE)
+plN_b_df <- plN_b_df %>% rename("butler"=specific.leaf.area)
+
+# sla stdev
+plN_slastd_b <- crop(butler_sla_std, plextN)
+plot(plN_slastd_b[[1]])
+plN_slastd_b_df <- raster::as.data.frame(plN_slastd_b, xy = TRUE)
+plN_slastd_b_df <- plN_slastd_b_df %>% 
+  rename("butler_std"= specific.leaf.area)
+
+# joining butler and cardamom for poles lat
+plN <- left_join(plN_c_df, plN_b_df)
+plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
 
 
-
-
-
+#### ANALYSIS TROPICS ####
 # heatscatter tropics ----
-
+# sla mean
 trp_c_sla_n <- trpSLA$cardamom
 trp_b_sla_n <- trpSLA$butler
 
+png("./figures/heatscatter_trps_sla.png", width = 30, height = 15, units = "cm",
+    res = 300)
 (heatsc_sla_trp <- heatscatter(trp_c_sla_n, trp_b_sla_n, pch = 19, 
                                 cexplot = 0.5, colpal="spectral", 
                                 #disco() for all color options / could set to colorblind
-                                add.contour=TRUE, main = "SLA Mean\n",
+                                add.contour=TRUE, main = "Tropics SLA Mean\n",
                                 xlab="\nCardamom", 
                                 ylab="\nButler"))
+dev.off()
 
-corr_trp_sla <- chart.Correlation(trpSLA)
+#corr_trp_sla <- chart.Correlation(trpSLA)
 
-# regression tropics ----
+# sla stdev 
+trp_c_std_n <- trpSTD$cardamom_std
+trp_b_std_n <- trpSTD$butler_std
 
-lm_tropics_sla <- lm(butler ~ cardamom, data = trpSLA)
-plot(lm_tropics_sla)
-summary(lm_tropics_sla)
-# Multiple R-squared:  0.1271,	Adjusted R-squared:  0.1269 
+png("./figures/heatscatter_trps_slastd.png", width = 30, height = 15, 
+    units = "cm", res = 300)
+(heatsc_slastd_trp <- heatscatter(trp_c_std_n, trp_b_std_n, pch = 19, 
+                               cexplot = 0.5, colpal="spectral", 
+                               #disco() for all color options / could set to colorblind
+                               add.contour=TRUE, main = "Tropics SLA StDev\n",
+                               xlab="\nCardamom", 
+                               ylab="\nButler"))
+dev.off()
 
-# rmse tropics ----
+## stats: R2 ----
+# sla mean
+trps_r2 <- trpSLA
+trps_r2 <- trps_r2 %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# Multiple R-squared:  0.1271
 
-  # rmse by row
+# sla stdev
+trps_std_r2 <- trpSTD
+trps_std_r2 <- trps_std_r2 %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         trps_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# R2 stdev tropics: 0.0380433
+
+## stats: RMSE ----
+# sla mean 
+  # rmse for each data point
 trp_sla_rmse <- trpSLA %>%
   mutate(rmse = sqrt((cardamom-butler)^2)) %>%
   dplyr::select(-cardamom & -butler) %>%
   filter(rmse!=0)
 
-  # plotting rmse by row 
+  # plotting rmse for each data point 
 (trps_sla_rmse_plot <- ggplot(trp_sla_rmse, aes(x,y,color=rmse))+
     geom_jitter(stat = "identity")+
     theme_classic()+
@@ -887,16 +983,345 @@ trp_sla_rmse <- trpSLA %>%
     ylab("Latitude\n")+
     xlab("\nLongitude")+
     labs(color=" ")+
-    ggtitle("Mean SLA RMSE\n")+
+    ggtitle("TROPICS Mean SLA RMSE\n")+
     theme(plot.title = element_text(face = "bold")))
+ggsave("./figures/trps_sla_rmse.png", trps_sla_rmse_plot, width = 30, 
+       height = 10, units = "cm", dpi = 300)
 
-  # average rmse all: 9.464195
+  # average rmse sla mean: 9.464195
 trps_sla_rmse_av <- trpSLA %>%
   filter(cardamom !=0, butler!=0) %>%
   summarise(rmse= sqrt(mean((cardamom-butler)^2)))
 
+# sla stdev 
+  # rmse for each point 
+trp_slastd_rmse <- trpSTD %>%
+  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
+  dplyr::select(-cardamom_std & -butler_std) %>%
+  filter(rmse!=0)
+# plotting rmse for each data point 
+(trp_slastd_rmse_plot <- ggplot(trp_slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("TROPICS SLA StDev RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+ggsave("./figures/trps_slastd_rmse.png", trp_slastd_rmse_plot, width = 30, 
+       height = 10, units = "cm", dpi = 300)
+
+# average rmse sla stdev: 40.99694
+trps_slastd_rmse_av <- trpSTD %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
 
 
+#### ANALYSIS SUBTROPICS ####
+# heatscatter subtrps ----
+# sla mean
+sbtrp_c_sla_n <- sbtrp_joined_SLA$cardamom
+sbtrp_b_sla_n <- sbtrp_joined_SLA$butler
 
+(heatsc_sla_sbtrp <- heatscatter(sbtrp_c_sla_n, sbtrp_b_sla_n, pch = 19, 
+                                  cexplot = 0.5, colpal="spectral", 
+                                  #disco() for all color options / could set to colorblind
+                                  add.contour=TRUE, main = "Subtropics SLA Mean\n",
+                                  xlab="\nCardamom", 
+                                  ylab="\nButler"))
+#sla stdev 
+sbtrp_c_slastd_n <- sbtrp_joined_STD$cardamom_std
+sbtrp_b_slastd_n <- sbtrp_joined_STD$butler_std
+
+(heatsc_slastd_sbtrp <- heatscatter(sbtrp_c_slastd_n, sbtrp_b_slastd_n, pch = 19, 
+                                  cexplot = 0.5, colpal="spectral", 
+                                  #disco() for all color options / could set to colorblind
+                                  add.contour=TRUE, main = "Subtropics SLA StDev\n",
+                                  xlab="\nCardamom", 
+                                  ylab="\nButler"))
+# need to save them panelled 
+## stats: R2 ----
+# sla mean r2
+sbtrp_r2 <- sbtrp_joined_SLA %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sbtrp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# r2 result for mean sla in subtropics: 0.1372143
+
+# sla stdev r2 
+sbtrp_std_r2 <- sbtrp_joined_STD
+sbtrp_std_r2 <- sbtrp_std_r2 %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sbtrp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# r2 result for sla stdev in subtropics: 0.01140631
+lm_trial <- lm(butler_std  ~ cardamom_std, data = sbtrp_joined_STD)
+summary(lm_trial) # same result as manual calculation 
+
+## stats: RMSE ----
+# rmse sla mean 
+  # for each single point
+sbtrp_sla_rmse <- sbtrp_joined_SLA %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
+  # plotting rmse for each data point
+(sbtrp_sla_rmse_plot <- ggplot(sbtrp_sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+ggsave("./figures/sbtrp_sla_rmse.png", sbtrp_sla_rmse_plot, width = 30, 
+       height = 15, units = "cm", dpi = 300)
+
+# average rmse sla mean subtropics: 7.340305
+subtrp_rmse_av_sla <- sbtrp_joined_SLA %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+# sla stdev 
+  # rmse each point
+sbtrp_slastd_rmse <- sbtrp_joined_STD %>%
+  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
+  dplyr::select(-cardamom_std & -butler_std) %>%
+  filter(rmse!=0)
+# plotting rmse for each data point 
+(sbtrp_slastd_rmse_plot <- ggplot(sbtrp_slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("SUBTROPICS SLA StDev RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
+ggsave("./figures/sbtrp_slastd_rmse.png", sbtrp_slastd_rmse_plot, width = 30, 
+       height = 10, units = "cm", dpi = 300)
+
+# average rmse sla stdev: 40.03824
+sbtrp_slastd_rmse_av <- sbtrp_joined_STD %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+
+#### ANALYSIS TEMPERATE ####
+# heatscatter ----
+  #sla mean
+tmp_sla_c_n <- tmp_sla$cardamom
+tmp_sla_b_n <- tmp_sla$butler
+(heatsc_sla_tmp <- heatscatter(tmp_sla_c_n, tmp_sla_b_n, pch = 19, 
+                               cexplot = 0.5, colpal="spectral", 
+                               #disco() for all color options / could set to colorblind
+                               add.contour=TRUE, main = "Temperate SLA Mean\n",
+                               xlab="\nCardamom", 
+                               ylab="\nButler"))
+  # sla stdev
+tmp_slastd_c_n <- tmp_slastd$cardamom_std
+tmp_slastd_b_n <- tmp_slastd$butler_std
+(heatsc_slastd_tmp <- heatscatter(tmp_slastd_c_n, tmp_slastd_b_n, pch = 19, 
+                                  cexplot = 0.5, colpal="spectral", 
+                                  #disco() for all color options / could set to colorblind
+                                  add.contour=TRUE, main = "Temperate SLA StDev\n",
+                                  xlab="\nCardamom", 
+                                  ylab="\nButler"))
+## stats: R2 ----
+# sla mean
+tmp_r2 <- tmp_sla %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         tmp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# result of r2 for temperate sla mean: 0.00640377
+
+# sla stdev
+tmp_std_r2 <- tmp_slastd
+tmp_std_r2 <- tmp_std_r2 %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         tmp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# results for r2 in temperate for sla stdev: 0.0001560524
+
+## stats: RMSE ----
+# sla mean 
+  # each data point
+tmp_sla_rmse <- tmp_sla %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
+# plotting rmse for each data point
+(tmp_sla_rmse_plot <- ggplot(tmp_sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("TEMPERATE Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+ggsave("./figures/tmp_sla_rmse.png", tmp_sla_rmse_plot, width = 30, 
+       height = 15, units = "cm", dpi = 300)
+  # RMSE average data points: 7.215715
+tmp_rmse_av_sla <- tmp_sla %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+# sla stdev 
+  # each data point 
+tmp_slastd_rmse <- tmp_slastd %>%
+  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
+  dplyr::select(-cardamom_std & -butler_std) %>%
+  filter(rmse!=0)
+# plotting rmse for each data point
+(tmp_slastd_rmse_plot <- ggplot(tmp_slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("TEMPERATE SLA StDev RMSE\n")+
+    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+ggsave("./figures/tmp_slastd_rmse.png", tmp_slastd_rmse_plot, width = 30, 
+       height = 15, units = "cm", dpi = 300)
+  # RMSE average data points: 29.67961
+tmp_rmse_av_slastd <- tmp_slastd %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+
+#### ANALYSIS POLES ####
+## stats: R2 ----
+# sla mean
+pl_r2 <- plN %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         pl_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# result of r2 for temperate sla mean: 0.02279148
+
+# sla stdev
+pl_std_r2 <- plN_std %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         pl_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# results for r2 in temperate for sla stdev: 0.001805205
+## stats: RMSE ----
+# sla mean 
+  # each data point
+pl_sla_rmse <- plN %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  dplyr::select(-cardamom & -butler) %>%
+  filter(rmse!=0)
+# plotting rmse for each data point
+(pl_sla_rmse_plot <- ggplot(pl_sla_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("N POLE Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+ggsave("./figures/Npl_sla_rmse.png", pl_sla_rmse_plot, width = 20, 
+       height = 10, units = "cm", dpi = 300)
+# RMSE average data points: 10.76312
+pl_rmse_av_sla <- plN %>%
+  filter(cardamom !=0, butler!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+# sla stdev 
+  # each data point 
+pl_slastd_rmse <- plN_std %>%
+  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
+  dplyr::select(-cardamom_std & -butler_std) %>%
+  filter(rmse!=0)
+  # plotting rmse for each data point
+(pl_slastd_rmse_plot <- ggplot(pl_slastd_rmse, aes(x,y,color=rmse))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("N POLE SLA StDev RMSE\n")+
+    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+ggsave("./figures/Npl_slastd_rmse.png", pl_slastd_rmse_plot, width = 20, 
+       height = 10, units = "cm", dpi = 300)
+
+# RMSE average data points: 25.24611
+pl_rmse_av_slastd <- plN_std %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+
+#### splitting by biome ####
 
 
