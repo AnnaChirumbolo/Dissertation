@@ -14,10 +14,6 @@
 # matrix of map, see how they differ from each other by each grid point 
 # calculation of bias / RMSE / R2 - visual and tabular repr.
 
-# MAKING MASKS
-  # splitting the globe, by latitudinal bands to observe differences by biome   
-  # splitting the globe, between different evergreen/deciduous (FACTOR SEASONALITY) - to carry out same observations at that level of comparison 
-
 ## Packages ----
 install.packages("ncdf4")
 install.packages("ggplot2")
@@ -62,6 +58,7 @@ library(sp)
 library(ggExtra)
 library(formattable)
 library(sf)
+
 
 
 ### opening netcdf, to data frame ----
@@ -702,6 +699,7 @@ formattable(stat_world) # to create the table
 
 
 ### should i be doing t-test and f-test for sla mean and std respectively? could do 
+
 
 ################################################################################
 #                           splitting of the world                             #
@@ -1407,7 +1405,7 @@ flo_grass_sav <- ecoregions17 %>%
 trp_sbtrp_grass_sav_shr <- ecoregions17 %>%
   filter(BIOME_NAME == "Tropical & Subtropical Grasslands, Savannas & Shrublands")
 
-# mask the raster taiga biome  ----
+# 1) mask raster taiga biome  ----
 # sla mean
 masked_taiga_sla_c <- raster::mask(cardamom_sla, boreal_f_taiga)
 masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
@@ -1420,7 +1418,7 @@ masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
 plot(masked_taiga_slastd_c[[1]])
 plot(masked_taiga_slastd_b[[1]])
 
-# mask the raster tundra biome ----
+# 2) mask raster tundra biome ----
 # sla mean 
 masked_tundra_sla_c <- raster::mask(cardamom_sla, tundra)
 masked_tundra_sla_b <- raster::mask(butler_sla, tundra)
@@ -1433,10 +1431,10 @@ masked_tundra_slastd_b <- raster::mask(butler_sla_std, tundra)
 plot(masked_tundra_slastd_c[[1]])
 plot(masked_tundra_slastd_b[[1]])
 
-# mask the raster temp conif forest biome ----
+# 3) mask raster temp conif forest biome ----
 # sla mean 
-mask_temp_conif_sla_c <- mask(cardamom_sla,temp_conif_forest)
-mask_temp_conif_sla_b <- mask(butler_sla, temp_conif_forest)
+mask_temp_conif_sla_c <- raster::mask(cardamom_sla,temp_conif_forest)
+mask_temp_conif_sla_b <- raster::mask(butler_sla, temp_conif_forest)
 plot(mask_temp_conif_sla_c[[1]])
 plot(mask_temp_conif_sla_b[[1]])
 
@@ -1446,7 +1444,7 @@ mask_temp_conif_slastd_b <- raster::mask(butler_sla_std, temp_conif_forest)
 plot(mask_temp_conif_slastd_c[[1]])
 plot(mask_temp_conif_slastd_b[[1]])
 
-# mask the raster temperate broad and mixed forest biome ----
+# 4) mask raster temperate broad and mixed forest biome ----
 # sla mean
 mask_temp_broad_mix_sla_c <- raster::mask(cardamom_sla, temp_broad_mix)
 mask_temp_broad_mix_sla_b <- raster::mask(butler_sla, temp_broad_mix)
@@ -1459,7 +1457,7 @@ mask_temp_broad_mix_slastd_b <- raster::mask(butler_sla_std, temp_broad_mix)
 plot(mask_temp_broad_mix_slastd_c[[1]])
 plot(mask_temp_broad_mix_slastd_b[[1]])
 
-# mask the raster tropical and subtropical dry broadleaf biome ----
+# 5) mask raster tropical and subtropical dry broadleaf biome ----
 # sla mean
 mask_trp_sbtrp_dry_broad_sla_c <- raster::mask(cardamom_sla, 
                                                trp_sbtrp_dry_broad)
@@ -1475,7 +1473,7 @@ mask_trp_sbtrp_dry_broad_slastd_b <- raster::mask(butler_sla_std,
 plot(mask_trp_sbtrp_dry_broad_slastd_c[[1]])
 plot(mask_trp_sbtrp_dry_broad_slastd_b[[1]])
 
-# mask the raster tropical and subtropical conif forest ----
+# 6) mask raster tropical and subtropical conif forest biome ----
 # sla mean 
 mask_trp_sbtrp_conif_sla_c <- raster::mask(cardamom_sla, trp_sbtrp_conif)
 mask_trp_sbtrp_conif_sla_b <- raster::mask(butler_sla, trp_sbtrp_conif)
@@ -1488,7 +1486,7 @@ mask_trp_sbtrp_conif_slastd_b <- raster::mask(butler_sla_std, trp_sbtrp_conif)
 plot(mask_trp_sbtrp_conif_slastd_c[[1]])
 plot(mask_trp_sbtrp_conif_slastd_b[[1]])
 
-# mask the raster tropical subtropical moist broadleaf biome ----
+# 7) mask raster tropical subtropical moist broadleaf biome ----
 # sla mean
 mask_trp_sbtrp_moist_broad_sla_c <- raster::mask(cardamom_sla, 
                                                  trp_sbtrp_moist_broad)
@@ -1505,7 +1503,7 @@ mask_trp_sbtrp_moist_broad_slastd_b <- raster::mask(butler_sla_std,
 plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
 plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
 
-# mask the raster mediterranean forests, woodlands, scrub biome ----
+# 8) mask raster mediterranean forests, woodlands, scrub biome ----
 # sla mean
 mask_med_f_w_scr_sla_c <- raster::mask(cardamom_sla, med_f_w_scr)
 mask_med_f_w_scr_sla_b <- raster::mask(butler_sla, med_f_w_scr)
@@ -1518,7 +1516,7 @@ mask_med_f_w_scr_slastd_b <- raster::mask(butler_sla_std, med_f_w_scr)
 plot(mask_med_f_w_scr_slastd_c[[1]])
 plot(mask_med_f_w_scr_slastd_b[[1]])
 
-# mask the raster desertic and xeric scrubland biome ----
+# 9) mask raster desertic and xeric scrubland biome ----
 # sla mean
 mask_des_x_scr_sla_c <- raster::mask(cardamom_sla, des_x_scr)
 mask_des_x_scr_sla_b <- raster:: mask(butler_sla, des_x_scr)
@@ -1531,7 +1529,7 @@ mask_des_x_scr_slastd_b <- raster::mask(butler_sla_std, des_x_scr)
 plot(mask_des_x_scr_slastd_c[[1]])
 plot(mask_des_x_scr_slastd_b[[1]])
 
-# mask the raster temperate grassland, savanna, shrubland biome ----
+# 10) mask raster temperate grassland, savanna, shrubland biome ----
 # sla mean
 mask_temp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla,temp_grass_sav_shr)
 mask_temp_grass_sav_shr_sla_b <- raster::mask(butler_sla, temp_grass_sav_shr)
@@ -1546,7 +1544,7 @@ mask_temp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
 plot(mask_temp_grass_sav_shr_slastd_c[[1]])
 plot(mask_temp_grass_sav_shr_slastd_b[[1]])
 
-# mask the raster montane grassland and shrubland biome ----
+# 11) mask raster montane grassland and shrubland biome ----
 # sla mean 
 mask_mont_grass_shr_sla_c <- raster::mask(cardamom_sla, mont_grass_shr)
 mask_mont_grass_shr_sla_b <- raster::mask(butler_sla, mont_grass_shr)
@@ -1561,7 +1559,7 @@ mask_mont_grass_shr_slastd_b <- raster::mask(butler_sla_std,
 plot(mask_mont_grass_shr_slastd_c[[1]])
 plot(mask_mont_grass_shr_slastd_b[[1]])
 
-# mask the raster mangrove biome ----
+# 12) mask raster mangrove biome ----
 # sla mean
 mask_mangroves_sla_c <- raster::mask(cardamom_sla, mangroves)
 mask_mangroves_sla_b <- raster::mask(butler_sla, mangroves)
@@ -1574,7 +1572,7 @@ mask_mangroves_slastd_b <- raster::mask(butler_sla_std, mangroves)
 plot(mask_mangroves_slastd_c[[1]])
 plot(mask_mangroves_slastd_b[[1]])
 
-# mask raster flooded grassland and savanna biome ----
+# 13) mask raster flooded grassland and savanna biome ----
 # sla mean
 mask_flo_grass_sav_sla_c <- raster::mask(cardamom_sla, flo_grass_sav)
 mask_flo_grass_sav_sla_b <- raster::mask(butler_sla, flo_grass_sav)
@@ -1587,7 +1585,7 @@ mask_flo_grass_sav_slastd_b <- raster::mask(butler_sla_std, flo_grass_sav)
 plot(mask_flo_grass_sav_slastd_c[[1]])
 plot(mask_flo_grass_sav_slastd_b[[1]])
 
-# mask raster tropical and subtropical grassland, savanna, shrubland biome ----
+# 14) mask raster tropical and subtropical grassland, savanna, shrubland biome ----
 # sla mean 
 mask_trp_sbtrp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla, 
                                                    trp_sbtrp_grass_sav_shr)
@@ -1603,6 +1601,167 @@ mask_trp_sbtrp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
                                                       trp_sbtrp_grass_sav_shr)
 plot(mask_trp_sbtrp_grass_sav_shr_slastd_c[[1]])
 plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
+
+
+
+### VISUAL AND STAT ANALYSIS BY BIOME ----
+# first thing - turning all masked rasterlayers to dataframes ----
+  # sla mean
+# 1) taiga
+taiga_sla_c <- raster::as.data.frame(masked_taiga_sla_c, xy = TRUE)
+taiga_sla_b <- raster::as.data.frame(masked_taiga_sla_b, xy = TRUE)
+# 2) tundra forest boreal 
+tundra_sla_c <- raster::as.data.frame(masked_tundra_sla_c, xy = TRUE)
+tundra_sla_b <- raster::as.data.frame(masked_tundra_sla_b, xy = TRUE)
+# 3) temperate coniferous forest 
+tmp_conif_sla_c <- raster::as.data.frame(mask_temp_conif_sla_c, xy = TRUE)
+tmp_conif_sla_b <- raster::as.data.frame(mask_temp_conif_sla_b, xy = TRUE)
+# 4) temperate broad and mixed forest 
+tmp_broad_mix_sla_c <- raster::as.data.frame(mask_temp_broad_mix_sla_c,
+                                             xy = TRUE)
+tmp_broad_mix_sla_b <- raster::as.data.frame(mask_temp_broad_mix_sla_b,
+                                             xy = TRUE)
+# 5) tropical and subtropical dry broadleaf
+trpsbtrp_dry_broad_sla_c <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_sla_c,
+                                                   xy = TRUE)
+trpsbtrp_dry_broad_sla_b <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_sla_b,
+                                                  xy = TRUE)
+# 6) tropical and subtropical conif forest
+trpsbtrp_conif_sla_c <- raster::as.data.frame(mask_trp_sbtrp_conif_sla_c,
+                                              xy = TRUE)
+trpsbtrp_conif_sla_b <- raster::as.data.frame(mask_trp_sbtrp_conif_sla_b,
+                                              xy = TRUE)
+# 7) tropical subtropical moist broadleaf biome
+trpsbtrp_moist_broad_sla_c <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_sla_c,
+                                                    xy = TRUE)
+trpsbtrp_moist_broad_sla_b <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_sla_b,
+                                                    xy = TRUE)
+# 8) mediterranean forests, woodlands, scrub biome
+med_f_w_scr_sla_c <- raster::as.data.frame(mask_med_f_w_scr_sla_c, 
+                                           xy = TRUE)
+med_f_w_scr_sla_b <- raster::as.data.frame(mask_med_f_w_scr_sla_b,
+                                           xy = TRUE)
+# 9) desertic and xeric scrubland
+des_x_scr_sla_c <- raster::as.data.frame(mask_des_x_scr_sla_c, xy = TRUE)
+des_x_scr_sla_b <- raster::as.data.frame(mask_des_x_scr_sla_b, xy = TRUE)
+# 10) temperate grassland, savanna, shrubland
+temp_grass_sav_shr_sla_c <- raster::as.data.frame(mask_temp_grass_sav_shr_sla_c,
+                                                  xy = TRUE)
+temp_grass_sav_shr_sla_b <- raster::as.data.frame(mask_temp_grass_sav_shr_sla_b,
+                                                  xy = TRUE)
+# 11) montane grassland and shrubland
+mont_grass_shr_sla_c <- raster::as.data.frame(mask_mont_grass_shr_sla_c, 
+                                              xy = TRUE)
+mont_grass_shr_sla_b <- raster::as.data.frame(mask_mont_grass_shr_sla_b,
+                                              xy = TRUE)
+# 12) mangroves
+mangr_sla_c <- raster::as.data.frame(mask_mangroves_sla_c, xy = TRUE)
+mangr_sla_b <- raster::as.data.frame(mask_mangroves_sla_b, xy = TRUE)
+# 13) flooded grassland and savanna
+flo_grass_sav_sla_c <- raster::as.data.frame(mask_flo_grass_sav_sla_c,
+                                             xy = TRUE)
+flo_grass_sav_sla_b <- raster::as.data.frame(mask_flo_grass_sav_sla_b, 
+                                             xy = TRUE)
+# 14) tropical and subtropical grassland, savanna, shrubland
+trpsbtrp_grass_sav_shr_sla_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_sla_c,
+                                                       xy = TRUE)
+trpsbtrp_grass_sav_shr_sla_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_sla_b,
+                                                      xy = TRUE)
+
+  # sla stdev 
+temp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_b,
+                                                     xy = TRUE)
+temp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_c,
+                                                     xy = TRUE)
+
+
+# joining dataframes cardamom + butler ----
+  # sla mean
+j_taiga_sla <- left_join(taiga_sla_c, taiga_sla_b) # joined taiga 
+j_tundra_sla <- left_join(tundra_sla_c, tundra_sla_b) # joined tundra
+j_tmp_c_sla <- left_join(tmp_conif_sla_c, tmp_conif_sla_b) # joined temp conif
+j_tmp_b_m_sla <- left_join(tmp_broad_mix_sla_c, tmp_broad_mix_sla_b) 
+  # joined temperate broad mixed forest
+j_trp_sbtrp_d_b_sla <- left_join(trpsbtrp_dry_broad_sla_c, # joined trop/subtrop
+                                 trpsbtrp_dry_broad_sla_b) # dry broadleaf
+j_trp_sbtrp_c_sla <- left_join(trpsbtrp_conif_sla_c, # joined trop/subtrop
+                               trpsbtrp_conif_sla_b) # coniferous 
+j_trp_sbtrp_m_br_sla <- left_join(trpsbtrp_moist_broad_sla_c, # joined trop/sub
+                                  trpsbtrp_moist_broad_sla_b) # mix-broadleaf
+j_med_f_sla <- left_join(med_f_w_scr_sla_c, med_f_w_scr_sla_b) # joined mediterranean
+  # forest and scrubland
+j_des_x_s_sla <- left_join(des_x_scr_sla_c, des_x_scr_sla_b) # joined desert,
+  # xeric shrubland
+j_temp_g_s_sh_sla <- left_join(temp_grass_sav_shr_sla_c, # joined temperate
+                               temp_grass_sav_shr_sla_b) # grass, scrub, shrub
+j_mont_g_shr_sla <- left_join(mont_grass_shr_sla_c, # joined montane grass,
+                              mont_grass_shr_sla_b) # shrub 
+j_mangr_sla <- left_join(mangr_sla_c, mangr_sla_b) # joined mangroves 
+j_flo_g_sav_sla <- left_join(flo_grass_sav_sla_c, flo_grass_sav_sla_b) 
+  # joined flooded grass and savanna
+j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c, # joined trop/ 
+                                  trpsbtrp_grass_sav_shr_sla_b) # sub grass, 
+  # savanna and shrubland
+
+## --- ##
+
+  # sla stdev
+j_taiga_slastd <- left_join(taiga_slastd_c, taiga_slastd_b)
+j_tundra_slastd <- left_join(tundra_slastd_c, tundra_slastd_b)
+j_tmp_c_slastd <- left_join(tmp_conif_slastd_c, tmp_conif_slastd_b)
+j_tmp_b_m_sla <- left_join(tmp_broad_mix_slastd_c,
+                           tmp_broad_mix_slastd_b)
+j_trp_sbtrp_d_b_slastd <- left_join(trpsbtrp_dry_broad_slastd_c,
+                                    trpsbtrp_dry_broad_slastd_b)
+j_trp_sbtrp_c_slastd <- left_join(trpsbtrp_conif_slastd_c,
+                                  trpsbtrp_conif_slastd_b)
+j_trp_sbtrp_m_br_slastd <- left_join(trpsbtrp_moist_broad_slastd_c,
+                                     trpsbtrp_moist_broad_slastd_b)
+j_med_f_slastd <- left_join(med_f_w_scr_slastd_c,
+                            med_f_w_scr_slastd_b)
+j_des_x_s_slastd <- left_join(des_x_scr_slastd_c, des_x_scr_slastd_b)
+j_temp_g_s_sh_slastd <- left_join(temp_grass_sav_shr_slastd_c, 
+                                  temp_grass_sav_shr_slastd_b)
+j_mont_g_shr_slastd <- left_join(mont_grass_shr_slastd_c, 
+                                 mont_grass_shr_slastd_b)
+j_mangr_slastd <- left_join(mangr_slastd_c, mangr_slastd_b)
+j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
+                                flo_grass_sav_slastd_b)
+j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
+                                         trpsbtrp_grass_sav_shr_slastd_b)
+
+# actual analysis ----
+# 1) taiga 
+hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
+hist_slastd_data <- hist_slastd_data %>%
+  select(count, xmin, xmax, group) 
+# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
+slastd_hist_c <- hist_slastd_data[group==1]
+slastd_hist_b <- hist_slastd_data[group==2]
+diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), 
+                          suffixes = c(".c",".b"), allow.cartesian=TRUE)
+diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
+setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
+                                                                "Butler"))
+diff_slastd_melt <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
+                         measure.vars = c("Cardamom","Difference","Butler"))
+
+(diff_histstd_plot <- ggplot(diff_slastd_melt, aes(xmin=xmin, xmax=xmax, 
+                                                   ymax=value,ymin=0, 
+                                                   group=variable, 
+                                                   fill=variable, color=variable, 
+                                                   alpha = 0.7))+
+    geom_rect()+
+    theme_classic()+
+    scale_fill_viridis(discrete = TRUE)+
+    scale_color_manual(values=c("black","black","black"))+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
+    theme(legend.title = element_blank()))  ## figure out how to show the overlap 
+# the whole length it says the difference between cardamom-butler!
+ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
+       units = "cm", dpi = 300)
+
 
 
 
