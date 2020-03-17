@@ -123,7 +123,7 @@ dev.off()
 setMinMax(cardamom_sla_std[[1]]-butler_sla_std[[1]])
 breakpoints <- c(-25,-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45, 50,
                      55,60,65)
-colors <- c("#27408B", "#36648B", "#4876FF", "#8DEEEE", "#FFFFFF", 
+colors <- c("#27408B", "#36648B", "#4876FF", "#8DEEEE","#000000",
             "#FFEBCD", "#FFEC8B", "#EEDC82", "#FFD700", "#EEB422", "#CD9B1D", 
             "#8B6914", "#EE6363","#CD5555",
             "#CD2626",  "#B22222", "#8B1A1A","#000000")
@@ -1064,8 +1064,7 @@ sbtrp_r2 <- sbtrp_joined_SLA %>%
 # r2 result for mean sla in subtropics: 0.1372143
 
 # sla stdev r2 
-sbtrp_std_r2 <- sbtrp_joined_STD
-sbtrp_std_r2 <- sbtrp_std_r2 %>%
+sbtrp_std_r2 <- sbtrp_joined_STD %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
   mutate(meanstd_b = mean(butler_std),
          meanstd_c = mean(cardamom_std),
@@ -1503,6 +1502,7 @@ mask_trp_sbtrp_moist_broad_slastd_b <- raster::mask(butler_sla_std,
 plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
 plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
 
+### these might be extras ###
 # 8) mask raster mediterranean forests, woodlands, scrub biome ----
 # sla mean
 mask_med_f_w_scr_sla_c <- raster::mask(cardamom_sla, med_f_w_scr)
@@ -1668,40 +1668,93 @@ trpsbtrp_grass_sav_shr_sla_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_s
 trpsbtrp_grass_sav_shr_sla_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_sla_b,
                                                       xy = TRUE)
 
-  # sla stdev 
-temp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_b,
-                                                     xy = TRUE)
+# sla stdev
+# 1) taiga
+taiga_slastd_c <- raster::as.data.frame(masked_taiga_slastd_c, xy = TRUE)
+taiga_slastd_b <- raster::as.data.frame(masked_taiga_slastd_b, xy = TRUE)
+# 2) tundra forest boreal 
+tundra_slastd_c <- raster::as.data.frame(masked_tundra_slastd_c, xy = TRUE)
+tundra_slastd_b <- raster::as.data.frame(masked_tundra_slastd_b, xy = TRUE)
+# 3) temperate coniferous forest 
+tmp_conif_slastd_c <- raster::as.data.frame(mask_temp_conif_slastd_c, 
+                                            xy = TRUE)
+tmp_conif_slastd_b <- raster::as.data.frame(mask_temp_conif_slastd_b,
+                                            xy = TRUE)
+# 4) temperate broad and mixed forest 
+tmp_broad_mix_slastd_c <- raster::as.data.frame(mask_temp_broad_mix_slastd_c,
+                                             xy = TRUE)
+tmp_broad_mix_slastd_b <- raster::as.data.frame(mask_temp_broad_mix_slastd_b,
+                                             xy = TRUE)
+# 5) tropical and subtropical dry broadleaf
+trpsbtrp_dry_broad_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_slastd_c,
+                                                  xy = TRUE)
+trpsbtrp_dry_broad_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_slastd_b,
+                                                  xy = TRUE)
+# 6) tropical and subtropical conif forest
+trpsbtrp_conif_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_conif_slastd_c,
+                                              xy = TRUE)
+trpsbtrp_conif_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_conif_slastd_b,
+                                              xy = TRUE)
+# 7) tropical subtropical moist broadleaf biome
+trpsbtrp_moist_broad_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_slastd_c,
+                                                    xy = TRUE)
+trpsbtrp_moist_broad_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_slastd_b,
+                                                    xy = TRUE)
+# 8) mediterranean forests, woodlands, scrub biome
+med_f_w_scr_slastd_c <- raster::as.data.frame(mask_med_f_w_scr_slastd_c, 
+                                           xy = TRUE)
+med_f_w_scr_slastd_b <- raster::as.data.frame(mask_med_f_w_scr_slastd_b,
+                                           xy = TRUE)
+# 9) desertic and xeric scrubland
+des_x_scr_slastd_c <- raster::as.data.frame(mask_des_x_scr_slastd_c, xy = TRUE)
+des_x_scr_slastd_b <- raster::as.data.frame(mask_des_x_scr_slastd_b, xy = TRUE)
+# 10) temperate grassland, savanna, shrubland
 temp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_c,
-                                                     xy = TRUE)
-
+                                                  xy = TRUE)
+temp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_b,
+                                                  xy = TRUE)
+# 11) montane grassland and shrubland
+mont_grass_shr_slastd_c <- raster::as.data.frame(mask_mont_grass_shr_slastd_c, 
+                                              xy = TRUE)
+mont_grass_shr_slastd_b <- raster::as.data.frame(mask_mont_grass_shr_slastd_b,
+                                              xy = TRUE)
+# 12) mangroves
+mangr_slastd_c <- raster::as.data.frame(mask_mangroves_slastd_c, xy = TRUE)
+mangr_slastd_b <- raster::as.data.frame(mask_mangroves_slastd_b, xy = TRUE)
+# 13) flooded grassland and savanna
+flo_grass_sav_slastd_c <- raster::as.data.frame(mask_flo_grass_sav_slastd_c,
+                                             xy = TRUE)
+flo_grass_sav_slastd_b <- raster::as.data.frame(mask_flo_grass_sav_slastd_b, 
+                                             xy = TRUE)
+# 14) tropical and subtropical grassland, savanna, shrubland
+trpsbtrp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_slastd_c,
+                                                      xy = TRUE)
+trpsbtrp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_slastd_b,
+                                                      xy = TRUE)
 
 # joining dataframes cardamom + butler ----
   # sla mean
-j_taiga_sla <- left_join(taiga_sla_c, taiga_sla_b) # joined taiga 
-j_tundra_sla <- left_join(tundra_sla_c, tundra_sla_b) # joined tundra
-j_tmp_c_sla <- left_join(tmp_conif_sla_c, tmp_conif_sla_b) # joined temp conif
+j_taiga_sla <- left_join(taiga_sla_c, taiga_sla_b) 
+j_tundra_sla <- left_join(tundra_sla_c, tundra_sla_b) 
+j_tmp_c_sla <- left_join(tmp_conif_sla_c, tmp_conif_sla_b) 
 j_tmp_b_m_sla <- left_join(tmp_broad_mix_sla_c, tmp_broad_mix_sla_b) 
-  # joined temperate broad mixed forest
-j_trp_sbtrp_d_b_sla <- left_join(trpsbtrp_dry_broad_sla_c, # joined trop/subtrop
-                                 trpsbtrp_dry_broad_sla_b) # dry broadleaf
-j_trp_sbtrp_c_sla <- left_join(trpsbtrp_conif_sla_c, # joined trop/subtrop
-                               trpsbtrp_conif_sla_b) # coniferous 
-j_trp_sbtrp_m_br_sla <- left_join(trpsbtrp_moist_broad_sla_c, # joined trop/sub
-                                  trpsbtrp_moist_broad_sla_b) # mix-broadleaf
-j_med_f_sla <- left_join(med_f_w_scr_sla_c, med_f_w_scr_sla_b) # joined mediterranean
-  # forest and scrubland
-j_des_x_s_sla <- left_join(des_x_scr_sla_c, des_x_scr_sla_b) # joined desert,
-  # xeric shrubland
-j_temp_g_s_sh_sla <- left_join(temp_grass_sav_shr_sla_c, # joined temperate
-                               temp_grass_sav_shr_sla_b) # grass, scrub, shrub
-j_mont_g_shr_sla <- left_join(mont_grass_shr_sla_c, # joined montane grass,
-                              mont_grass_shr_sla_b) # shrub 
-j_mangr_sla <- left_join(mangr_sla_c, mangr_sla_b) # joined mangroves 
+j_trp_sbtrp_d_b_sla <- left_join(trpsbtrp_dry_broad_sla_c, 
+                                 trpsbtrp_dry_broad_sla_b) 
+j_trp_sbtrp_c_sla <- left_join(trpsbtrp_conif_sla_c, 
+                               trpsbtrp_conif_sla_b) 
+j_trp_sbtrp_m_br_sla <- left_join(trpsbtrp_moist_broad_sla_c, 
+                                  trpsbtrp_moist_broad_sla_b) 
+j_med_f_sla <- left_join(med_f_w_scr_sla_c, med_f_w_scr_sla_b) 
+j_des_x_s_sla <- left_join(des_x_scr_sla_c, des_x_scr_sla_b) 
+j_temp_g_s_sh_sla <- left_join(temp_grass_sav_shr_sla_c, 
+                               temp_grass_sav_shr_sla_b) 
+j_mont_g_shr_sla <- left_join(mont_grass_shr_sla_c, 
+                              mont_grass_shr_sla_b)
+j_mangr_sla <- left_join(mangr_sla_c, mangr_sla_b)
 j_flo_g_sav_sla <- left_join(flo_grass_sav_sla_c, flo_grass_sav_sla_b) 
   # joined flooded grass and savanna
-j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c, # joined trop/ 
-                                  trpsbtrp_grass_sav_shr_sla_b) # sub grass, 
-  # savanna and shrubland
+j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c,
+                                  trpsbtrp_grass_sav_shr_sla_b) 
 
 ## --- ##
 
@@ -1710,7 +1763,7 @@ j_taiga_slastd <- left_join(taiga_slastd_c, taiga_slastd_b)
 j_tundra_slastd <- left_join(tundra_slastd_c, tundra_slastd_b)
 j_tmp_c_slastd <- left_join(tmp_conif_slastd_c, tmp_conif_slastd_b)
 j_tmp_b_m_sla <- left_join(tmp_broad_mix_slastd_c,
-                           tmp_broad_mix_slastd_b)
+                           tmp_broad_mix_slastd_b) 
 j_trp_sbtrp_d_b_slastd <- left_join(trpsbtrp_dry_broad_slastd_c,
                                     trpsbtrp_dry_broad_slastd_b)
 j_trp_sbtrp_c_slastd <- left_join(trpsbtrp_conif_slastd_c,
@@ -1730,41 +1783,212 @@ j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
 j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
                                          trpsbtrp_grass_sav_shr_slastd_b)
 
-# actual analysis ----
-# 1) taiga 
-hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
-hist_slastd_data <- hist_slastd_data %>%
-  select(count, xmin, xmax, group) 
+# DIFFERENCE MAP (ESTIMATE) ----
+breakpoints_taiga <- c(-20,-15,-10,-5,0,5,10,15,20,25,30)
+colors_taiga <- c("#36648B", "#8DEEEE" ,
+            "#FFEBCD", "#FFEC8B", "red", "#EEDC82", "#FFD700", "#EEB422", "#CD9B1D", 
+            "#8B6914", "#EE6363","#CD5555",
+            "#CD2626",  "#B22222", "#8B1A1A","#000000")
+(plot_taiga_diff_sla <- plot(masked_taiga_sla_c[[1]]-
+                               masked_taiga_sla_b[[1]], asp = NA,
+                             breaks = breakpoints_taiga,
+                             col = colors_taiga)) # need to fix the colouring 
+
+# DIFFERENCE HISTOGRAMS ----
+# 1) taiga ----
+  # sla mean
+j_taiga_sla_h <- j_taiga_sla %>%
+  gather(key = "dataset",value="sla", -x,-y)
+  # - histogram for cardamom and butler in taiga biome
+(taiga_sla_hist <- ggplot(j_taiga_sla_h, aes(x=sla,group=dataset,
+                                                  fill=dataset))+
+    geom_histogram(bins = 100, alpha=0.4)+
+    theme_ipsum()+
+    scale_fill_discrete(name="SLA Mean (Taiga)", 
+                        labels=c("Cardamom", "Butler")))
+
+taiga_sla_hist_data <- as.data.table(ggplot_build(taiga_sla_hist)$data[1])
+taiga_sla_hist_data <- taiga_sla_hist_data %>%
+  dplyr::select(count, xmin, xmax, group) 
 # atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
-slastd_hist_c <- hist_slastd_data[group==1]
-slastd_hist_b <- hist_slastd_data[group==2]
-diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), 
+taiga_sla_hist_data_c <- taiga_sla_hist_data[group==1]
+taiga_sla_hist_data_b <- taiga_sla_hist_data[group==2]
+taiga_sla_hist_diff <- merge(taiga_sla_hist_data_c, taiga_sla_hist_data_b, 
+                             by=c("xmin","xmax"), 
                           suffixes = c(".c",".b"), allow.cartesian=TRUE)
-diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
-setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
+taiga_sla_hist_diff <- taiga_sla_hist_diff[,Difference:=count.c-count.b]
+setnames(taiga_sla_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
                                                                 "Butler"))
-diff_slastd_melt <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
+taiga_sla_hist_diff_melt <- melt(taiga_sla_hist_diff, id.vars = c("xmin","xmax"), 
                          measure.vars = c("Cardamom","Difference","Butler"))
 
-(diff_histstd_plot <- ggplot(diff_slastd_melt, aes(xmin=xmin, xmax=xmax, 
-                                                   ymax=value,ymin=0, 
-                                                   group=variable, 
-                                                   fill=variable, color=variable, 
-                                                   alpha = 0.7))+
+(taiga_sla_hist_diff_plot <- ggplot(taiga_sla_hist_diff_melt, 
+                                    aes(xmin=xmin, xmax=xmax,
+                                        ymax=value,ymin=0,
+                                        group=variable,
+                                        fill=variable, 
+                                        color=variable,
+                                        alpha = 0.7))+
     geom_rect()+
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
     xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
-    theme(legend.title = element_blank()))  ## figure out how to show the overlap 
-# the whole length it says the difference between cardamom-butler!
+    ggtitle("Specific Leaf Area: difference in distribution for Taiga biome") +
+    theme(legend.title = element_blank()))  
+
+ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
+       units = "cm", dpi = 300)
+
+  # sla stdev 
+
+j_taiga_slastd_h <- j_taiga_slastd %>%
+  gather(key = "dataset",value="sla_std", -x,-y)
+# - histogram for cardamom and butler in taiga biome
+(taiga_slastd_hist <- ggplot(j_taiga_slastd_h, aes(x=sla_std,group=dataset,
+                                             fill=dataset))+
+    geom_histogram(bins = 100, alpha=0.4)+
+    theme_ipsum()+
+    scale_fill_discrete(name="SLA Mean (Taiga)", 
+                        labels=c("Cardamom", "Butler")))
+
+taiga_slastd_hist_data <- as.data.table(ggplot_build(taiga_slastd_hist)$data[1])
+taiga_slastd_hist_data <- taiga_slastd_hist_data %>%
+  dplyr::select(count, xmin, xmax, group) 
+# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
+taiga_slastd_hist_data_c <- taiga_slastd_hist_data[group==1]
+taiga_slastd_hist_data_b <- taiga_slastd_hist_data[group==2]
+taiga_slastd_hist_diff <- merge(taiga_slastd_hist_data_c, 
+                                taiga_slastd_hist_data_b, 
+                             by=c("xmin","xmax"), 
+                             suffixes = c(".c",".b"), allow.cartesian=TRUE)
+taiga_slastd_hist_diff <- taiga_slastd_hist_diff[,Difference:=count.c-count.b]
+setnames(taiga_slastd_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
+                                                                   "Butler"))
+taiga_slastd_hist_diff_melt <- melt(taiga_slastd_hist_diff, 
+                                    id.vars = c("xmin","xmax"), 
+                                 measure.vars = c("Cardamom","Difference",
+                                                  "Butler"))
+
+(taiga_slastd_hist_diff_plot <- ggplot(taiga_slastd_hist_diff_melt, 
+                                    aes(xmin=xmin, xmax=xmax,
+                                        ymax=value,ymin=0,
+                                        group=variable,
+                                        fill=variable, 
+                                        color=variable,
+                                        alpha = 0.7))+
+    geom_rect()+
+    theme_classic()+
+    scale_fill_viridis(discrete = TRUE)+
+    scale_color_manual(values=c("black","black","black"))+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
+    ggtitle("Specific Leaf Area StDev: difference in distribution for Taiga biome\n") +
+    theme(legend.title = element_blank()))  
+
+ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
+       units = "cm", dpi = 300)
+
+# 2) tundra ----
+  # sla mean 
+j_tundra_sla_hist <- j_tundra_sla %>%
+  gather(dataset, sla, -x,-y)
+
+(tundra_sla_hist <- ggplot(j_tundra_sla_hist, aes(x=sla,group=dataset,
+                                             fill=dataset))+
+    geom_histogram(bins = 100, alpha=0.4)+
+    theme_ipsum()+
+    scale_fill_discrete(name="SLA Mean (Taiga)", 
+                        labels=c("Cardamom", "Butler")))
+
+tundra_sla_hist_data <- as.data.table(ggplot_build(tundra_sla_hist)$data[1])
+tundra_sla_hist_data <- tundra_sla_hist_data %>%
+  dplyr::select(count, xmin, xmax, group) 
+# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
+tundra_sla_hist_data_c <- tundra_sla_hist_data[group==1]
+tundra_sla_hist_data_b <- tundra_sla_hist_data[group==2]
+tundra_sla_hist_diff <- merge(tundra_sla_hist_data_c, tundra_sla_hist_data_b, 
+                             by=c("xmin","xmax"), 
+                             suffixes = c(".c",".b"), allow.cartesian=TRUE)
+tundra_sla_hist_diff <- tundra_sla_hist_diff[,Difference:=count.c-count.b]
+setnames(tundra_sla_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
+                                                                   "Butler"))
+tundra_sla_hist_diff_melt <- melt(tundra_sla_hist_diff, id.vars = c("xmin","xmax"), 
+                                 measure.vars = c("Cardamom","Difference","Butler"))
+
+(tundra_sla_hist_diff_plot <- ggplot(tundra_sla_hist_diff_melt, 
+                                    aes(xmin=xmin, xmax=xmax,
+                                        ymax=value,ymin=0,
+                                        group=variable,
+                                        fill=variable, 
+                                        color=variable,
+                                        alpha = 0.7))+
+    geom_rect()+
+    theme_classic()+
+    scale_fill_viridis(discrete = TRUE)+
+    scale_color_manual(values=c("black","black","black"))+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
+    ggtitle("Specific Leaf Area: difference in distribution for Tundra biome") +
+    theme(legend.title = element_blank()))  
+
 ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
        units = "cm", dpi = 300)
 
 
 
 
+# HEATSCATTER ----
+# 1) taiga ----
+  # sla mean 
+taiga_c_n <- j_taiga_sla$sla
+taiga_b_n <- j_taiga_sla$specific.leaf.area
+(heatsc_taiga_sla <- heatscatter(taiga_c_n, taiga_b_n, 
+                                 pch = 19, cexplot = 0.5, colpal="spectral", 
+                                 add.contour=TRUE, main = "SLA Mean (taiga)\n",
+                                 xlab="\nCardamom", 
+                                 ylab="\nButler"))
+# STATS: R2 ----
+# 1) taiga ----
+  # sla mean 
+taiga_sla_r2 <- j_taiga_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+# result for sla mean: 0.02340087
+
+  # sla stdev
+taiga_slastd_r2 <- j_taiga_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+# result for r2 in taiga sla stdev: 0.03539376
 
 
 
