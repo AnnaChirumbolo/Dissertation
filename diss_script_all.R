@@ -33,6 +33,7 @@ install.packages("LSD")
 install.packages("rworldmap")
 install.packages("Hmisc")
 install.packages("formattable")
+install.packages("sf")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -60,6 +61,7 @@ library(Hmisc)
 library(sp)
 library(ggExtra)
 library(formattable)
+library(sf)
 
 
 ### opening netcdf, to data frame ----
@@ -706,7 +708,9 @@ formattable(stat_world) # to create the table
 #               -- for these also need to calculate the bias!!! ---            #
 ################################################################################
 
-#### do splitting by latitude ####
+###############################
+#### SPLITTING BY LATITUDE ####
+###############################
   # tropics ----
 # cardamom:
   # sla mean
@@ -894,6 +898,7 @@ plN_slastd_b_df <- plN_slastd_b_df %>%
 # joining butler and cardamom for poles lat
 plN <- left_join(plN_c_df, plN_b_df)
 plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
+
 
 
 #### ANALYSIS TROPICS ####
@@ -1205,7 +1210,7 @@ tmp_sla_rmse <- tmp_sla %>%
     xlab("\nLongitude")+
     labs(color=" ")+
     ggtitle("TEMPERATE Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
+    theme(plot.title = element_text(face = "bold")))
 ggsave("./figures/tmp_sla_rmse.png", tmp_sla_rmse_plot, width = 30, 
        height = 15, units = "cm", dpi = 300)
   # RMSE average data points: 7.215715
@@ -1322,6 +1327,286 @@ pl_rmse_av_slastd <- plN_std %>%
   summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
 
 
-#### splitting by biome ####
+
+#### ADDITIONAL STATS: BIAS #### not sure how to to it... 
+# trial - tropics ----
+trps_r2 <- trps_r2 %>%
+  mutate(bias_point = new_b_val - butler,
+         sum_error_b = sum(bias_point),
+         bias_av = sum_error_b / 3403) # very close to 0 --> 1.137954e-16
+
+(trps_bias_sla <- ggplot(trps_r2, aes(x,y,color=bias_point))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_viridis(direction = 1)+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("Trial bias tropics sla mean\n")+
+    theme(plot.title = element_text(face = "bold")))
+# need to put all results in a single dataframe - incl global and by lat 
+   # not sure if this is right
+
+
+cold_deciduous_forest <-'./DATA/cold.deciduous.forest_p_1km_s0..0cm_2000..2017_v0.1.tif' 
+raster_decidious_forest =raster(cold_deciduous_forest)
+plot(imported_raster[[1]])
+
+cold_evergreen_needleleaf <- "./DATA/cold.evergreen.needleleaf.forest_p_1km_s0..0cm_2000..2017_v0.1.tif"
+raster_evergreen_needleleaf <- raster(cold_evergreen_needleleaf)
+plot(raster_evergreen_needleleaf[[1]])
+
+#### OTHER ADDITIONAL STATS: T-TEST AND F-TEST? ####
+
+#############################
+#### SPLITTING BY BIOME #####
+#############################
+# OPEN DATASET: ECOREGIONS17 - where i get the biome masks from ----
+ecoregions17 <- st_read("./DATA/Ecoregions2017/Ecoregions2017.shp")
+st_crs(ecoregions17)
+st_bbox(ecoregions17)
+#      xmin       ymin       xmax       ymax 
+#-179.99999  -89.89197  180.00000   83.62313 
+
+(plot_ecoregion17 <- ggplot() + 
+                  geom_sf(data = ) + 
+                  ggtitle("Ecoregions 2017") + 
+                  coord_sf())
+
+unique(ecoregions17[[4]])
+ecoregions17_geom <- st_geometry(ecoregions17)
+ecoregions17_geom[[1]]
+
+# creation of different raster layers by major biome types ----
+boreal_f_taiga <- ecoregions17 %>%
+  filter(BIOME_NAME == "Boreal Forests/Taiga")
+tundra <- ecoregions17 %>%
+  filter(BIOME_NAME == "Tundra")
+temp_conif_forest <- ecoregions17 %>%
+  filter(BIOME_NAME == "Temperate Conifer Forests")
+temp_broad_mix <- ecoregions17 %>%
+  filter(BIOME_NAME == "Temperate Broadleaf & Mixed Forests")
+trp_sbtrp_dry_broad <- ecoregions17 %>%
+  filter(BIOME_NAME == "Tropical & Subtropical Dry Broadleaf Forests")
+trp_sbtrp_conif <- ecoregions17 %>%
+  filter(BIOME_NAME == "Tropical & Subtropical Coniferous Forests")
+trp_sbtrp_moist_broad <- ecoregions17 %>%
+  filter(BIOME_NAME == "Tropical & Subtropical Moist Broadleaf Forests")
+med_f_w_scr <- ecoregions17 %>%
+  filter(BIOME_NAME == "Mediterranean Forests, Woodlands & Scrub")
+des_x_scr <- ecoregions17 %>%
+  filter(BIOME_NAME == "Deserts & Xeric Shrublands")
+temp_grass_sav_shr <- ecoregions17 %>%
+  filter(BIOME_NAME == "Temperate Grasslands, Savannas & Shrublands")
+mont_grass_shr <- ecoregions17 %>%
+  filter(BIOME_NAME == "Montane Grasslands & Shrublands")
+mangroves <- ecoregions17 %>%
+  filter(BIOME_NAME == "Mangroves")
+flo_grass_sav <- ecoregions17 %>%
+  filter(BIOME_NAME == "Flooded Grasslands & Savannas")
+trp_sbtrp_grass_sav_shr <- ecoregions17 %>%
+  filter(BIOME_NAME == "Tropical & Subtropical Grasslands, Savannas & Shrublands")
+
+# mask the raster taiga biome  ----
+# sla mean
+masked_taiga_sla_c <- raster::mask(cardamom_sla, boreal_f_taiga)
+masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
+plot(masked_taiga_sla_c[[1]])
+plot(masked_taiga_sla_b[[1]])
+
+# sla stdev 
+masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
+masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
+plot(masked_taiga_slastd_c[[1]])
+plot(masked_taiga_slastd_b[[1]])
+
+# mask the raster tundra biome ----
+# sla mean 
+masked_tundra_sla_c <- raster::mask(cardamom_sla, tundra)
+masked_tundra_sla_b <- raster::mask(butler_sla, tundra)
+plot(masked_tundra_sla_c[[1]])
+plot(masked_tundra_sla_b[[1]])
+
+# sla stdev 
+masked_tundra_slastd_c <- raster::mask(cardamom_sla_std, tundra)
+masked_tundra_slastd_b <- raster::mask(butler_sla_std, tundra)
+plot(masked_tundra_slastd_c[[1]])
+plot(masked_tundra_slastd_b[[1]])
+
+# mask the raster temp conif forest biome ----
+# sla mean 
+mask_temp_conif_sla_c <- mask(cardamom_sla,temp_conif_forest)
+mask_temp_conif_sla_b <- mask(butler_sla, temp_conif_forest)
+plot(mask_temp_conif_sla_c[[1]])
+plot(mask_temp_conif_sla_b[[1]])
+
+# sla stdev 
+mask_temp_conif_slastd_c <- raster::mask(cardamom_sla_std, temp_conif_forest)
+mask_temp_conif_slastd_b <- raster::mask(butler_sla_std, temp_conif_forest)
+plot(mask_temp_conif_slastd_c[[1]])
+plot(mask_temp_conif_slastd_b[[1]])
+
+# mask the raster temperate broad and mixed forest biome ----
+# sla mean
+mask_temp_broad_mix_sla_c <- raster::mask(cardamom_sla, temp_broad_mix)
+mask_temp_broad_mix_sla_b <- raster::mask(butler_sla, temp_broad_mix)
+plot(mask_temp_broad_mix_sla_c[[1]])
+plot(mask_temp_broad_mix_sla_b[[1]])
+
+# sla stdev 
+mask_temp_broad_mix_slastd_c <- raster::mask(cardamom_sla_std, temp_broad_mix)
+mask_temp_broad_mix_slastd_b <- raster::mask(butler_sla_std, temp_broad_mix)
+plot(mask_temp_broad_mix_slastd_c[[1]])
+plot(mask_temp_broad_mix_slastd_b[[1]])
+
+# mask the raster tropical and subtropical dry broadleaf biome ----
+# sla mean
+mask_trp_sbtrp_dry_broad_sla_c <- raster::mask(cardamom_sla, 
+                                               trp_sbtrp_dry_broad)
+mask_trp_sbtrp_dry_broad_sla_b <-raster::mask(butler_sla, trp_sbtrp_dry_broad)
+plot(mask_trp_sbtrp_dry_broad_sla_c[[1]])
+plot(mask_trp_sbtrp_dry_broad_sla_b[[1]])
+
+# sla stdev 
+mask_trp_sbtrp_dry_broad_slastd_c <- raster::mask(cardamom_sla_std, 
+                                                  trp_sbtrp_dry_broad)
+mask_trp_sbtrp_dry_broad_slastd_b <- raster::mask(butler_sla_std, 
+                                                  trp_sbtrp_dry_broad)
+plot(mask_trp_sbtrp_dry_broad_slastd_c[[1]])
+plot(mask_trp_sbtrp_dry_broad_slastd_b[[1]])
+
+# mask the raster tropical and subtropical conif forest ----
+# sla mean 
+mask_trp_sbtrp_conif_sla_c <- raster::mask(cardamom_sla, trp_sbtrp_conif)
+mask_trp_sbtrp_conif_sla_b <- raster::mask(butler_sla, trp_sbtrp_conif)
+plot(mask_trp_sbtrp_conif_sla_c[[1]])
+plot(mask_trp_sbtrp_conif_sla_b[[1]])
+
+# sla stdev 
+mask_trp_sbtrp_conif_slastd_c <- raster::mask(cardamom_sla_std, trp_sbtrp_conif)
+mask_trp_sbtrp_conif_slastd_b <- raster::mask(butler_sla_std, trp_sbtrp_conif)
+plot(mask_trp_sbtrp_conif_slastd_c[[1]])
+plot(mask_trp_sbtrp_conif_slastd_b[[1]])
+
+# mask the raster tropical subtropical moist broadleaf biome ----
+# sla mean
+mask_trp_sbtrp_moist_broad_sla_c <- raster::mask(cardamom_sla, 
+                                                 trp_sbtrp_moist_broad)
+mask_trp_sbtrp_moist_broad_sla_b <- raster::mask(butler_sla, 
+                                                 trp_sbtrp_moist_broad)
+plot(mask_trp_sbtrp_moist_broad_sla_c[[1]])
+plot(mask_trp_sbtrp_moist_broad_sla_b[[1]])
+
+# sla stdev 
+mask_trp_sbtrp_moist_broad_slastd_c <- raster::mask(cardamom_sla_std, 
+                                                    trp_sbtrp_moist_broad)
+mask_trp_sbtrp_moist_broad_slastd_b <- raster::mask(butler_sla_std, 
+                                                    trp_sbtrp_moist_broad)
+plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
+plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
+
+# mask the raster mediterranean forests, woodlands, scrub biome ----
+# sla mean
+mask_med_f_w_scr_sla_c <- raster::mask(cardamom_sla, med_f_w_scr)
+mask_med_f_w_scr_sla_b <- raster::mask(butler_sla, med_f_w_scr)
+plot(mask_med_f_w_scr_sla_c[[1]])
+plot(mask_med_f_w_scr_sla_b[[1]])
+
+# sla stdev 
+mask_med_f_w_scr_slastd_c <- raster::mask(cardamom_sla_std, med_f_w_scr)
+mask_med_f_w_scr_slastd_b <- raster::mask(butler_sla_std, med_f_w_scr)
+plot(mask_med_f_w_scr_slastd_c[[1]])
+plot(mask_med_f_w_scr_slastd_b[[1]])
+
+# mask the raster desertic and xeric scrubland biome ----
+# sla mean
+mask_des_x_scr_sla_c <- raster::mask(cardamom_sla, des_x_scr)
+mask_des_x_scr_sla_b <- raster:: mask(butler_sla, des_x_scr)
+plot(mask_des_x_scr_sla_c[[1]])
+plot(mask_des_x_scr_sla_b[[1]])
+
+# sla stdev 
+mask_des_x_scr_slastd_c <- raster::mask(cardamom_sla_std, des_x_scr)
+mask_des_x_scr_slastd_b <- raster::mask(butler_sla_std, des_x_scr)
+plot(mask_des_x_scr_slastd_c[[1]])
+plot(mask_des_x_scr_slastd_b[[1]])
+
+# mask the raster temperate grassland, savanna, shrubland biome ----
+# sla mean
+mask_temp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla,temp_grass_sav_shr)
+mask_temp_grass_sav_shr_sla_b <- raster::mask(butler_sla, temp_grass_sav_shr)
+plot(mask_temp_grass_sav_shr_sla_c[[1]])
+plot(mask_temp_grass_sav_shr_sla_b[[1]])
+
+# sla stdev
+mask_temp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std, 
+                                                 temp_grass_sav_shr)
+mask_temp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std, 
+                                                 temp_grass_sav_shr)
+plot(mask_temp_grass_sav_shr_slastd_c[[1]])
+plot(mask_temp_grass_sav_shr_slastd_b[[1]])
+
+# mask the raster montane grassland and shrubland biome ----
+# sla mean 
+mask_mont_grass_shr_sla_c <- raster::mask(cardamom_sla, mont_grass_shr)
+mask_mont_grass_shr_sla_b <- raster::mask(butler_sla, mont_grass_shr)
+plot(mask_mont_grass_shr_sla_c[[1]])
+plot(mask_mont_grass_shr_sla_b[[1]])
+
+# sla stdev 
+mask_mont_grass_shr_slastd_c <- raster::mask(cardamom_sla_std, 
+                                             mont_grass_shr)
+mask_mont_grass_shr_slastd_b <- raster::mask(butler_sla_std, 
+                                             mont_grass_shr)
+plot(mask_mont_grass_shr_slastd_c[[1]])
+plot(mask_mont_grass_shr_slastd_b[[1]])
+
+# mask the raster mangrove biome ----
+# sla mean
+mask_mangroves_sla_c <- raster::mask(cardamom_sla, mangroves)
+mask_mangroves_sla_b <- raster::mask(butler_sla, mangroves)
+plot(mask_mangroves_sla_c[[1]])
+plot(mask_mangroves_sla_b[[1]])
+
+# sla stdev 
+mask_mangroves_slastd_c <- raster::mask(cardamom_sla_std, mangroves)
+mask_mangroves_slastd_b <- raster::mask(butler_sla_std, mangroves)
+plot(mask_mangroves_slastd_c[[1]])
+plot(mask_mangroves_slastd_b[[1]])
+
+# mask raster flooded grassland and savanna biome ----
+# sla mean
+mask_flo_grass_sav_sla_c <- raster::mask(cardamom_sla, flo_grass_sav)
+mask_flo_grass_sav_sla_b <- raster::mask(butler_sla, flo_grass_sav)
+plot(mask_flo_grass_sav_sla_c[[1]])
+plot(mask_flo_grass_sav_sla_b[[1]])
+
+# sla stdev 
+mask_flo_grass_sav_slastd_c <- raster::mask(cardamom_sla_std, flo_grass_sav)
+mask_flo_grass_sav_slastd_b <- raster::mask(butler_sla_std, flo_grass_sav)
+plot(mask_flo_grass_sav_slastd_c[[1]])
+plot(mask_flo_grass_sav_slastd_b[[1]])
+
+# mask raster tropical and subtropical grassland, savanna, shrubland biome ----
+# sla mean 
+mask_trp_sbtrp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla, 
+                                                   trp_sbtrp_grass_sav_shr)
+mask_trp_sbtrp_grass_sav_shr_sla_b <- raster::mask(butler_sla, 
+                                                   trp_sbtrp_grass_sav_shr)
+plot(mask_trp_sbtrp_grass_sav_shr_sla_c[[1]])
+plot(mask_trp_sbtrp_grass_sav_shr_sla_b[[1]])
+
+# sla stdev 
+mask_trp_sbtrp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std,
+                                                      trp_sbtrp_grass_sav_shr)
+mask_trp_sbtrp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
+                                                      trp_sbtrp_grass_sav_shr)
+plot(mask_trp_sbtrp_grass_sav_shr_slastd_c[[1]])
+plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
+
+
+
+
+
 
 
