@@ -30,6 +30,7 @@ install.packages("rworldmap")
 install.packages("Hmisc")
 install.packages("formattable")
 install.packages("sf")
+#install.packages("egg")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -58,7 +59,7 @@ library(sp)
 library(ggExtra)
 library(formattable)
 library(sf)
-
+#library(egg)
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
@@ -1784,7 +1785,7 @@ j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
 
 
 # DIFFERENCE HISTOGRAMS ----
-
+## major biomes of interest ##
 # 1) taiga ----
       # sla mean----
 j_taiga_sla_h <- j_taiga_sla %>%
@@ -1870,7 +1871,9 @@ taiga_slastd_hist_diff_melt <- melt(taiga_slastd_hist_diff,
   #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Taiga\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500))  
 
 # 2) tundra ---- 
      # sla mean ----
@@ -1909,8 +1912,7 @@ tundra_sla_hist_diff_melt <- melt(tundra_sla_hist_diff, id.vars = c("xmin","xmax
     scale_color_manual(values=c("black","black","black"))+
   #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
   #  ylab("Count\n")+
-    ggtitle("Tundra\n") +
-    theme(legend.title = element_blank()))  
+    ggtitle("Tundra\n"))  
 
      # sla stdev ----
 tundra_slastd_h <- j_tundra_slastd %>%
@@ -1951,7 +1953,9 @@ tundra_slastd_h_melt <- melt(tundra_slastd_h_diff,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Tundra\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
 # 3) temp conif forest biome ----
       # sla mean ---- 
@@ -2033,7 +2037,9 @@ temp_c_slastd_h_melt <- melt(temp_c_slastd_h_diff,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Temperate coniferous forest\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
 # 4) temp broad mix forest biome ----
       # sla mean ----
@@ -2118,7 +2124,9 @@ temp_broad_mix_slastd_h_merge <- melt(temp_broad_mix_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Temperate broadleaf/mixed forest\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
 # 5) tropical and subtropical dry broadleaf biome ----
       # sla mean ----
@@ -2201,7 +2209,9 @@ trpsbtrp_dry_broad_slastd_h_merge <- melt(trpsbtrp_dry_broad_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Tropical and subtropical dry broadleaf forest\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
 # 6) tropical and subtropical conif forest biome ----
       # sla mean ----
@@ -2284,7 +2294,9 @@ trpsbtrp_conif_slastd_h_merge <- melt(trpsbtrp_conif_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Tropical and subtropical coniferous forest\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 # 7) tropical subtropical moist broadleaf biome ----
       # sla mean ----
 trpsbtrp_m_broad_h <- j_trp_sbtrp_m_br_sla %>%
@@ -2362,10 +2374,12 @@ trpsbtrp_m_broad_slastd_h_merge <- melt(trpsbtrp_m_broad_slastd_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
+    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Tropical and subtropical moist broadleaf forest\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
 # 8) mediterranean forests, woodlands, scrub ----
       # sla mean ----
@@ -2443,11 +2457,14 @@ med_f_w_scr_slastd_h_merge <- melt(med_f_w_scr_slastd_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
+    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
+    #ylab("Count\n")+
     ggtitle("Mediterranean forests, woodlands and scrubland\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,75)+
+    ylim(-500,500)) 
 
+## other biomes ##
 # 9) desertic and xeric scrubland ---- 
       # sla mean ---- 
 des_x_scr_h <- j_des_x_s_sla %>%
@@ -2527,7 +2544,9 @@ des_x_scr_slastd_h_merge <- melt(des_x_scr_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Desert and xeric scrubland\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70)) 
 
 # 10) temperate grassland, savanna, shrubland ----
       # sla mean ----
@@ -2609,7 +2628,9 @@ temp_grass_sav_shr_slastd_h_merge <- melt(temp_grass_sav_shr_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Temperate grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70)) 
 
 # 11) montane grassland and shrubland biome ----
       # sla mean ----
@@ -2690,7 +2711,9 @@ mont_grass_shr_slastd_h_merge <- melt(mont_grass_shr_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Montane grassland and scrubland\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70)) 
 
 # 12) mangrove ----
       # sla mean ----
@@ -2771,7 +2794,9 @@ mangr_slastd_h_merge <- melt(mangr_slastd_h_merge,
     #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Mangrove\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70)) 
 
 # 13) flooded grassland and savanna ----
       # sla mean ----
@@ -2853,7 +2878,9 @@ flo_grass_sav_slatd_h_merge <- melt(flo_grass_sav_slatd_h_merge,
     xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Flooded grassland and savanna\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70))
 
 # 14) tropical and subtropical grassland, savanna, shrubland ----
       # sla mean ----
@@ -2934,7 +2961,9 @@ trpsbtrp_grass_sav_shr_slastd_h_merge <- melt(trpsbtrp_grass_sav_shr_slastd_h_me
     xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Tropical and subtropical grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-200, 200)+
+    xlim(0, 70))
 
 ## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla mean ----
 (panel_biome_hist_diff <- ggarrange(taiga_sla_hist_diff_plot,
@@ -2952,30 +2981,44 @@ trpsbtrp_grass_sav_shr_slastd_h_merge <- melt(trpsbtrp_grass_sav_shr_slastd_h_me
                                     flo_grass_sav_h_plot_diff,
                                     trpsbtrp_grass_sav_shr_h_diff, 
                                     ncol = 2,
-                                    nrow = 7, common.legend = TRUE))
+                                    nrow = 7, common.legend = TRUE,
+                                    align = "v"))
 ggsave("./figures/panel_biome_diff_hist.png", panel_biome_hist_diff, 
        width = 90, height = 80, units = "cm", dpi = 500)
 
 ## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla stdev ----
-(panel_biome_hist_slastd_diff <- ggarrange(taiga_slastd_hist_diff_plot,
+
+  # major biomes of interest
+(panel_majbiome_hist_slastd_diff <- ggarrange(taiga_slastd_hist_diff_plot,
                                            tundra_slastd_h_diff,
-                                           temp_con_sla_hist_diff_plot,
+                                           temp_c_slastd_h_diff,
                                            temp_broad_mix_slastd_h_diff,
                                            trpsbtrp_dry_broad_slastd_h_diff,
                                            trpsbtrp_conif_slastd_h_diff,
                                            trpsbtrp_m_broad_slastd_h_diff,
                                            med_f_w_scr_slastd_h_diff,
-                                           des_x_scr_slastd_h_diff,
-                                           temp_grass_sav_shr_slastd_h_diff,
-                                           mont_grass_shr_slastd_h_diff,
-                                           mangr_slastd_h_diff,
-                                           flo_grass_sav_slatd_h_diff,
-                                           trpsbtrp_grass_sav_shr_slastd_h_diff,
                                            ncol = 2,
-                                           nrow = 7,
-                                           common.legend = TRUE))
-ggsave("./figures/panel_biome_hist_slastd_diff.png", panel_biome_hist_slastd_diff,
-       width = 90, height = 80, units = "cm", dpi = 500) 
+                                           nrow = 4,
+                                           common.legend = TRUE,
+                                           align = "v"))
+ggsave("./figures/panel_majbiome_hist_slastd_diff.png", 
+       panel_majbiome_hist_slastd_diff,
+       width = 40, height = 20, units = "cm", dpi = 500) 
+
+  # other biomes
+(panel_obiome_hist_slastd_diff <- ggarrange(des_x_scr_slastd_h_diff,
+                                              temp_grass_sav_shr_slastd_h_diff,
+                                              mont_grass_shr_slastd_h_diff,
+                                              mangr_slastd_h_diff,
+                                              flo_grass_sav_slatd_h_diff,
+                                              trpsbtrp_grass_sav_shr_slastd_h_diff,
+                                              ncol = 2,
+                                              nrow = 3,
+                                              common.legend = TRUE,
+                                              align = "v"))
+
+ggsave("./figures/panel_obiomes_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
+       width = 40, height = 20, units = "cm", dpi = 500)
 
 # HEATSCATTER ----
 # 1) taiga ----
