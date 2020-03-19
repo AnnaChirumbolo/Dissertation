@@ -1824,10 +1824,12 @@ taiga_sla_hist_diff_melt <- melt(taiga_sla_hist_diff, id.vars = c("xmin","xmax")
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-#    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+#   xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Taiga\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0, 65)+
+    ylim(-150,400))  
 
       # sla stdev ----
 j_taiga_slastd_h <- j_taiga_slastd %>%
@@ -1912,7 +1914,9 @@ tundra_sla_hist_diff_melt <- melt(tundra_sla_hist_diff, id.vars = c("xmin","xmax
     scale_color_manual(values=c("black","black","black"))+
   #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
   #  ylab("Count\n")+
-    ggtitle("Tundra\n"))  
+    ggtitle("Tundra\n")+
+    xlim(0, 65)+
+    ylim(-150,400))  
 
      # sla stdev ----
 tundra_slastd_h <- j_tundra_slastd %>%
@@ -1997,7 +2001,9 @@ temp_con_sla_hist_merge <- melt(temp_con_sla_hist_merge,
   #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Temperate coniferous forest\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0, 33)+
+    ylim(-15,25))  
 
       # sla stdev ----
 temp_c_slastd_h <- j_temp_g_s_sh_slastd %>%
@@ -2034,7 +2040,7 @@ temp_c_slastd_h_melt <- melt(temp_c_slastd_h_diff,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
+    #xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Temperate coniferous forest\n") +
     theme(legend.title = element_blank())+
@@ -2080,11 +2086,12 @@ tmp_b_m_sla_h_merge <- melt(tmp_b_m_sla_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
-  #  ylab("Count\n")+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
     ggtitle("Temperate broadleaf/mixed forest\n") +
-    theme(legend.title = element_blank()))  
-
+    theme(legend.title = element_blank())+
+    xlim(0, 65)+
+    ylim(-150,400))  
     
       # sla stdev ----
 temp_broad_mix_slastd_h <- j_tmp_b_m_slastd %>%
@@ -2121,8 +2128,8 @@ temp_broad_mix_slastd_h_merge <- melt(temp_broad_mix_slastd_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
+    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
+    ylab("Count\n")+
     ggtitle("Temperate broadleaf/mixed forest\n") +
     theme(legend.title = element_blank())+
     xlim(0,75)+
@@ -2169,7 +2176,9 @@ trpsbtrp_d_broad_h_merge <- melt(trpsbtrp_d_broad_h_merge,
    # xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Tropical and subtropical dry broadleaf forest\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0, 33)+
+    ylim(-15,25))  
 
       # sla stdev ----
 trpsbtrp_dry_broad_slastd_h <- j_trp_sbtrp_d_b_slastd %>%
@@ -2210,8 +2219,8 @@ trpsbtrp_dry_broad_slastd_h_merge <- melt(trpsbtrp_dry_broad_slastd_h_merge,
     ylab("Count\n")+
     ggtitle("Tropical and subtropical dry broadleaf forest\n") +
     theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
+    xlim(0,65)+
+    ylim(-50,50)) 
 
 # 6) tropical and subtropical conif forest biome ----
       # sla mean ----
@@ -2252,10 +2261,13 @@ trpsbtrp_conif_h_data_merge <- melt(trpsbtrp_conif_h_data_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
- #   xlab("\nSpecific Leaf Area (m2.kg-1)")+
-  #  ylab("Count\n")+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    ylab("Count\n")+
     ggtitle("Tropical and subtropical coniferous forest\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0, 33)+
+    ylim(-15,25))  
+
       # sla stdev ----
 trpsbtrp_conif_slastd_h <- j_trp_sbtrp_c_slastd %>%
   gather(key = "dataset",value="sla_std", -x,-y)
@@ -2295,8 +2307,8 @@ trpsbtrp_conif_slastd_h_merge <- melt(trpsbtrp_conif_slastd_h_merge,
     #  ylab("Count\n")+
     ggtitle("Tropical and subtropical coniferous forest\n") +
     theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
+    xlim(0,65)+
+    ylim(-50,50)) 
 # 7) tropical subtropical moist broadleaf biome ----
       # sla mean ----
 trpsbtrp_m_broad_h <- j_trp_sbtrp_m_br_sla %>%
@@ -2304,7 +2316,7 @@ trpsbtrp_m_broad_h <- j_trp_sbtrp_m_br_sla %>%
 (trpsbtrp_m_broad_h_plot <- ggplot(trpsbtrp_m_broad_h, aes(sla, 
                                                            group = dataset,
                                                            fill = dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
+    geom_histogram(bins = 50, alpha=0.4)+
     theme_ipsum()+
     scale_fill_discrete(name="SLA Mean (tropical and subtropical moist broadleaf forest biome)",
                         labels=c("Cardamom", "Butler")))
@@ -2334,10 +2346,12 @@ trpsbtrp_m_broad_h_merge <- melt(trpsbtrp_m_broad_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Tropical and subtropical moist broadleaf forest\n") +
-    theme(legend.title = element_blank()))  
+    theme(legend.title = element_blank())+
+    xlim(0, 65)+
+    ylim(-150,400))  
 
       # sla stdev ----
 trpsbtrp_m_broad_slastd_h <- j_trp_sbtrp_m_br_slastd %>%
@@ -2375,7 +2389,7 @@ trpsbtrp_m_broad_slastd_h_merge <- melt(trpsbtrp_m_broad_slastd_h_merge,
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
     xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
+   # ylab("Count\n")+
     ggtitle("Tropical and subtropical moist broadleaf forest\n") +
     theme(legend.title = element_blank())+
     xlim(0,75)+
@@ -2417,10 +2431,12 @@ med_f_w_scr_h_plot_merge <- melt(med_f_w_scr_h_plot_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-#    xlab("\nSpecific Leaf Area (m2.kg-1)")+
- #   ylab("Count\n")+
+    xlab("\nSpecific Leaf Area (m2.kg-1)")+
+ #  ylab("Count\n")+
     ggtitle("Mediterranean forest, woodland and scrubland\n") +
-    theme(legend.title = element_blank())) 
+    theme(legend.title = element_blank())+
+    xlim(0,33)+
+    ylim(-15,25)) 
 
       # sla stdev ----
 med_f_w_scr_slastd_h <- j_med_f_slastd %>%
@@ -2461,8 +2477,8 @@ med_f_w_scr_slastd_h_merge <- melt(med_f_w_scr_slastd_h_merge,
     #ylab("Count\n")+
     ggtitle("Mediterranean forests, woodlands and scrubland\n") +
     theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
+    xlim(0,65)+
+    ylim(-50,50)) 
 
 ## other biomes ##
 # 9) desertic and xeric scrubland ---- 
@@ -2504,7 +2520,9 @@ des_x_scr_h_plot_merge <- melt(des_x_scr_h_plot_merge,
  #   xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Desert and xeric scrubland\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-80,150)+
+    xlim(0,40))
 
       # sla stdev ----
 des_x_scr_slastd_h <- j_des_x_s_slastd %>%
@@ -2588,7 +2606,9 @@ temp_grass_sav_shr_h_merge <- melt(temp_grass_sav_shr_h_merge,
   #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
    # ylab("Count\n")+
     ggtitle("Temperate grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-80,150)+
+    xlim(0,40))
 
       # sla stdev ----
 temp_grass_sav_shr_slastd_h <- j_temp_g_s_sh_slastd %>%
@@ -2625,7 +2645,7 @@ temp_grass_sav_shr_slastd_h_merge <- melt(temp_grass_sav_shr_slastd_h_merge,
     theme_classic()+
     scale_fill_viridis(discrete = TRUE)+
     scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
+    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
     #  ylab("Count\n")+
     ggtitle("Temperate grassland, savanna and shrubland\n") +
     theme(legend.title = element_blank())+
@@ -2671,7 +2691,9 @@ mont_grass_shr_h_plot_merge <- melt(mont_grass_shr_h_plot_merge,
 #    xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Montane grassland and shrubland\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-25,50)+
+    xlim(0,25))
 
       # sla stdev ----
 mont_grass_shr_slastd_h <- j_mont_g_shr_slastd %>%
@@ -2712,8 +2734,8 @@ mont_grass_shr_slastd_h_merge <- melt(mont_grass_shr_slastd_h_merge,
     ylab("Count\n")+
     ggtitle("Montane grassland and scrubland\n") +
     theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70)) 
+    ylim(-70, 70)+
+    xlim(0, 65)) 
 
 # 12) mangrove ----
       # sla mean ----
@@ -2754,7 +2776,9 @@ mangr_h_plot_merge <- melt(mangr_h_plot_merge,
   #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
   #  ylab("Count\n")+
     ggtitle("Mangrove\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-25,50)+
+    xlim(0,25))
 
       # sla stdev ----
 mangr_slastd_h <- j_mangr_slastd %>%
@@ -2795,8 +2819,8 @@ mangr_slastd_h_merge <- melt(mangr_slastd_h_merge,
     #  ylab("Count\n")+
     ggtitle("Mangrove\n") +
     theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70)) 
+    ylim(-70, 70)+
+    xlim(0, 65)) 
 
 # 13) flooded grassland and savanna ----
       # sla mean ----
@@ -2838,7 +2862,9 @@ flo_grass_sav_h_plot_merge <- melt(flo_grass_sav_h_plot_merge,
     xlab("\nSpecific Leaf Area (m2.kg-1)")+
     ylab("Count\n")+
     ggtitle("Flooded grassland and savanna\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-25,50)+
+    xlim(0,25))
 
       # sla stdev ---- 
 flo_grass_sav_slatd_h <- j_flo_g_sav_slastd %>%
@@ -2879,8 +2905,8 @@ flo_grass_sav_slatd_h_merge <- melt(flo_grass_sav_slatd_h_merge,
     ylab("Count\n")+
     ggtitle("Flooded grassland and savanna\n") +
     theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70))
+    ylim(-70, 70)+
+    xlim(0, 65))
 
 # 14) tropical and subtropical grassland, savanna, shrubland ----
       # sla mean ----
@@ -2921,7 +2947,9 @@ trpsbtrp_grass_sav_shr_h_merge <- melt(trpsbtrp_grass_sav_shr_h_merge,
     xlab("\nSpecific Leaf Area (m2.kg-1)")+
   #  ylab("Count\n")+
     ggtitle("Tropical and subtropical grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank()))
+    theme(legend.title = element_blank())+
+    ylim(-80,150)+
+    xlim(0,40))
 
       # sla stdev ----
 trpsbtrp_grass_sav_shr_slastd_h <- j_trpsbtrp_g_sav_shr_slastd %>%
@@ -2966,70 +2994,286 @@ trpsbtrp_grass_sav_shr_slastd_h_merge <- melt(trpsbtrp_grass_sav_shr_slastd_h_me
     xlim(0, 70))
 
 ## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla mean ----
-(panel_biome_hist_diff <- ggarrange(taiga_sla_hist_diff_plot,
+  # major biomes 1
+(panel_majbiome_hist_diff <- ggarrange(taiga_sla_hist_diff_plot,
                                     tundra_sla_hist_diff_plot,
-                                    temp_con_sla_hist_diff_plot,
                                     tmp_b_m_sla_h_diff, 
-                                    trpsbtrp_d_broad_h_diff,
-                                    trpsbtrp_conif_h_diff,
                                     trpsbtrp_m_broad_h_diff,
-                                    med_f_w_scr_h_plot_diff,
-                                    des_x_scr_h_plot_merge_diff,
-                                    temp_grass_sav_shr_h_diff,
-                                    mont_grass_shr_h_diff,
-                                    mangr_h_plot_diff,
-                                    flo_grass_sav_h_plot_diff,
-                                    trpsbtrp_grass_sav_shr_h_diff, 
                                     ncol = 2,
-                                    nrow = 7, common.legend = TRUE,
-                                    align = "v"))
-ggsave("./figures/panel_biome_diff_hist.png", panel_biome_hist_diff, 
-       width = 90, height = 80, units = "cm", dpi = 500)
+                                    nrow = 2, common.legend = TRUE,
+                                    align = "hv"))
+ggsave("./figures/panel_majbiome_diff_hist1.png", panel_majbiome_hist_diff, 
+       width = 40, height = 25, units = "cm", dpi = 500)
+
+  # major biomes 2
+(panel_majbiome_hist_diff_2 <- ggarrange(temp_con_sla_hist_diff_plot,
+                                      trpsbtrp_d_broad_h_diff,
+                                      trpsbtrp_conif_h_diff,
+                                      med_f_w_scr_h_plot_diff,
+                                      ncol = 2, 
+                                      nrow = 2,
+                                      common.legend = TRUE,
+                                      align = "hv"))
+ggsave("./figures/panel_majbiome_diff_hist2.png", panel_majbiome_hist_diff_2,
+       width = 40, height = 25, units = "cm", dpi = 500)
+
+  # other biomes 1
+(panel_obiome1_hist_diff <- ggarrange(des_x_scr_h_plot_merge_diff,
+                                     temp_grass_sav_shr_h_diff,
+                                     trpsbtrp_grass_sav_shr_h_diff,
+                                     ncol = 2,
+                                     nrow = 2,
+                                     common.legend = TRUE,
+                                     align = "v"))
+ggsave("./figures/panel_obiome1_diff_hist.png", panel_obiome1_hist_diff,
+       width = 45, height = 20, units = "cm", dpi = 500)
+
+  # other biomes 2
+(panel_obiome2_hist_diff <- ggarrange(mont_grass_shr_h_diff,
+                                      mangr_h_plot_diff,
+                                      flo_grass_sav_h_plot_diff,
+                                      ncol = 2,
+                                      nrow = 2,
+                                      common.legend = TRUE,
+                                      align = "hv"))
+ggsave("./figures/panel_obiome2_diff_hist.png", panel_obiome2_hist_diff,
+       width = 45, height = 20, units = "cm", dpi = )
 
 ## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla stdev ----
-
-  # major biomes of interest
-(panel_majbiome_hist_slastd_diff <- ggarrange(taiga_slastd_hist_diff_plot,
+  # major biomes 1
+(panel_majbiome1_hist_slastd_diff <- ggarrange(taiga_slastd_hist_diff_plot,
                                            tundra_slastd_h_diff,
                                            temp_c_slastd_h_diff,
-                                           temp_broad_mix_slastd_h_diff,
-                                           trpsbtrp_dry_broad_slastd_h_diff,
-                                           trpsbtrp_conif_slastd_h_diff,
                                            trpsbtrp_m_broad_slastd_h_diff,
-                                           med_f_w_scr_slastd_h_diff,
+                                           temp_broad_mix_slastd_h_diff,
                                            ncol = 2,
-                                           nrow = 4,
+                                           nrow = 3,
                                            common.legend = TRUE,
                                            align = "v"))
-ggsave("./figures/panel_majbiome_hist_slastd_diff.png", 
-       panel_majbiome_hist_slastd_diff,
-       width = 40, height = 20, units = "cm", dpi = 500) 
+ggsave("./figures/panel_majbiome1_hist_slastd_diff.png", 
+       panel_majbiome1_hist_slastd_diff,
+       width = 45, height = 20, units = "cm", dpi = 500) 
 
-  # other biomes
-(panel_obiome_hist_slastd_diff <- ggarrange(des_x_scr_slastd_h_diff,
-                                              temp_grass_sav_shr_slastd_h_diff,
-                                              mont_grass_shr_slastd_h_diff,
-                                              mangr_slastd_h_diff,
-                                              flo_grass_sav_slatd_h_diff,
-                                              trpsbtrp_grass_sav_shr_slastd_h_diff,
+  # major biomes 2
+(panel_majbiome2_hist_slastd_diff <- ggarrange(trpsbtrp_dry_broad_slastd_h_diff,
+                                              trpsbtrp_conif_slastd_h_diff,
+                                              med_f_w_scr_slastd_h_diff,
                                               ncol = 2,
-                                              nrow = 3,
+                                              nrow = 2,
                                               common.legend = TRUE,
                                               align = "v"))
+ggsave("./figures/panel_majbiome2_hist_slastd_diff.png", 
+       panel_majbiome2_hist_slastd_diff,
+       width = 45, height = 20, units = "cm", dpi = 500)
 
-ggsave("./figures/panel_obiomes_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
-       width = 40, height = 20, units = "cm", dpi = 500)
+  # other biomes 1
+(panel_obiome1_hist_slastd_diff <- ggarrange(des_x_scr_slastd_h_diff,
+                                            temp_grass_sav_shr_slastd_h_diff,
+                                            trpsbtrp_grass_sav_shr_slastd_h_diff,
+                                            ncol = 2,
+                                            nrow = 2,
+                                            common.legend = TRUE,
+                                            align = "v"))
 
-# HEATSCATTER ----
+ggsave("./figures/panel_obiomes1_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
+       width = 45, height = 20, units = "cm", dpi = 500)
+
+  # other biomes 2
+(panel_obiome2_hist_slastd_diff <- ggarrange(mont_grass_shr_slastd_h_diff,
+                                             mangr_slastd_h_diff,
+                                             flo_grass_sav_slatd_h_diff,
+                                            ncol = 2,
+                                            nrow = 2,
+                                            common.legend = TRUE,
+                                            align = "v"))
+
+ggsave("./figures/panel_obiomes2_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
+       width = 45, height = 20, units = "cm", dpi = 500)
+
+
+
+# HEATSCATTER SLA MEAN MAJ BIOMES ----
+png("./figures/panel_heatsc_biome_sla.png", width = 50, height = 30,
+    units = "cm", res = 500)
+par(mfcol=c(2,4))
 # 1) taiga ----
-  # sla mean 
 taiga_c_n <- j_taiga_sla$sla
 taiga_b_n <- j_taiga_sla$specific.leaf.area
 (heatsc_taiga_sla <- heatscatter(taiga_c_n, taiga_b_n, 
                                  pch = 19, cexplot = 0.5, colpal="spectral", 
-                                 add.contour=TRUE, main = "SLA Mean (taiga)\n",
-                                 xlab="\nCardamom", 
-                                 ylab="\nButler"))
+                                 add.contour=TRUE, main = "Taiga",
+                                 xlab=" ", 
+                                 ylab="Butler"))
+  
+# 2) tundra ----
+tundra_c_n <- j_tundra_sla$sla
+tundra_b_n <- j_tundra_sla$specific.leaf.area
+(heatsc_taiga_sla <- heatscatter(tundra_c_n, tundra_b_n, 
+                                 pch = 19, cexplot = 0.5, colpal="spectral", 
+                                 add.contour=TRUE, main = "Tundra",
+                                 xlab="Cardamom", 
+                                 ylab="Butler"))
+
+# 3) temp conif forest ----
+temp_con_c_n <- j_tmp_c_sla$sla
+temp_con_b_n <- j_tmp_c_sla$specific.leaf.area
+(heatsc_temp_con <- heatscatter(temp_con_c_n, temp_con_b_n, 
+                                 pch = 19, cexplot = 0.5, colpal="spectral", 
+                                 add.contour=TRUE, main = "Temperate coniferous",
+                                 xlab=" ", 
+                                 ylab=" "))
+
+# 4) temp broad mix forest ----
+temp_broad_mix_c_n <- j_tmp_b_m_sla$sla
+temp_broad_mix_b_n <- j_tmp_b_m_sla$specific.leaf.area
+(heatsc_temp_con <- heatscatter(temp_broad_mix_c_n, temp_broad_mix_b_n, 
+                                pch = 19, cexplot = 0.5, colpal="spectral", 
+                                add.contour=TRUE, main = "Temperate broad/mixed",
+                                xlab="Cardamom", 
+                                ylab=" "))
+
+# 5) tropical and subtropical dry broadleaf ----
+trpsbtrp_dry_broad_c_n <- j_trp_sbtrp_d_b_sla$sla
+trpsbtrp_dry_broad_b_n <- j_trp_sbtrp_d_b_sla$specific.leaf.area
+(heatsc_trpsbtrp_d_broad <- heatscatter(trpsbtrp_dry_broad_c_n, 
+                                        trpsbtrp_dry_broad_b_n, 
+                                pch = 19, cexplot = 0.5, colpal="spectral", 
+                                add.contour=TRUE, 
+                                main = "Tropical/subtropical dry broadleaf",
+                                xlab=" ", 
+                                ylab=" "))
+
+# 6) tropical and subtropical conif forest ----
+trpsbtrp_con_c_n <- j_trp_sbtrp_c_sla$sla
+trpsbtrp_con_b_n <- j_trp_sbtrp_c_sla$specific.leaf.area
+(heatsc_trpsbtrp_con <- heatscatter(trpsbtrp_con_c_n, 
+                                    trpsbtrp_con_b_n, 
+                                pch = 19, cexplot = 0.5, colpal="spectral", 
+                                add.contour=TRUE, main = "Tropical/subtropical coniferous",
+                                xlab="Cardamom", 
+                                ylab=" "))
+
+# 7) tropical subtropical moist broadleaf ----
+trpsbtrp_m_broad_c_n <- j_trp_sbtrp_m_br_sla$sla
+trpsbtrp_m_broad_b_n <- j_trp_sbtrp_m_br_sla$specific.leaf.area
+(heatsc_trpsbtrp_m_broad <- heatscatter(trpsbtrp_m_broad_c_n, 
+                                        trpsbtrp_m_broad_b_n, 
+                                    pch = 19, cexplot = 0.5, colpal="spectral", 
+                                    add.contour=TRUE, 
+                                    main = "Tropical/subtropical moist broadleaf",
+                                    xlab=" ", 
+                                    ylab=" "))
+
+# 8) mediterranean forests, woodlands, scrub ----
+med_f_w_scr_c_n <- j_med_f_sla$sla
+med_f_w_scr_b_n <- j_med_f_sla$specific.leaf.area
+(heatsc_med_f_w_scr <- heatscatter(med_f_w_scr_c_n, 
+                                   med_f_w_scr_b_n, 
+                                        pch = 19, cexplot = 0.5, colpal="spectral", 
+                                        add.contour=TRUE, 
+                                   main = "Mediterranean\nwoodland and scrubland",
+                                        xlab="Cardamom", 
+                                        ylab=" "))
+
+# dev.off ----
+dev.off()
+
+
+
+# HEATSCATTER SLA STDEV MAJ BIOMES ----
+png("./figures/panel_heatsc_slastd_biomes.png", width = 50,
+    height = 30, units = "cm", res = 500)
+par(mfcol = c(2,4))
+# 1) Taiga ----
+taiga_slastd_c_n <- j_taiga_slastd$Standard_Deviation
+taiga_slastd_b_n <- j_taiga_slastd$specific.leaf.area
+(heatsc_taiga_slastd <- heatscatter(taiga_slastd_c_n, taiga_slastd_b_n, 
+                                    pch = 19, cexplot = 0.5, colpal="spectral", 
+                                    add.contour=TRUE, main = "Taiga",
+                                    xlab="", 
+                                    ylab="Butler"))
+# 2) Tundra ----
+tundra_c_slastd_n <- j_tundra_slastd$Standard_Deviation
+tundra_b_slastd_n <- j_tundra_slastd$specific.leaf.area
+(heatsc_tundra_slastd <- heatscatter(tundra_c_slastd_n, tundra_b_slastd_n, 
+                                    pch = 19, cexplot = 0.5, colpal="spectral", 
+                                    add.contour=TRUE, main = "Tundra",
+                                    xlab="Cardamom", 
+                                    ylab="Butler"))
+
+# 3) temp conif forest ----
+temp_con_std_c_n <- j_tmp_c_slastd$Standard_Deviation
+temp_con_std_b_n <- j_tmp_c_slastd$specific.leaf.area
+(heatsc_temp_con_slastd <- heatscatter(temp_con_std_c_n, 
+                                       temp_con_std_b_n, 
+                                     pch = 19, cexplot = 0.5, colpal="spectral", 
+                                     add.contour=TRUE, main = "Temperate coniferous",
+                                     xlab="", 
+                                     ylab=""))
+
+# 4) temp broad mix forest ----
+temp_broad_mix_std_c_n <- j_tmp_b_m_slastd$Standard_Deviation
+temp_broad_mix_std_b_n <- j_tmp_b_m_slastd$specific.leaf.area
+(heatsc_temp_b_m_slastd <- heatscatter(temp_broad_mix_std_c_n, 
+                                       temp_broad_mix_std_b_n, 
+                                       pch = 19, cexplot = 0.5, 
+                                       colpal="spectral", 
+                                       add.contour=TRUE, 
+                                       main = "Temperate broadleaf mixed",
+                                       xlab="Cardamom", 
+                                       ylab=""))
+
+# 5) tropical and subtropical dry broadleaf ----
+trpsbtrp_d_broad_std_c_n <- j_trp_sbtrp_d_b_slastd$Standard_Deviation
+trpsbtrp_d_broad_std_b_n <- j_trp_sbtrp_d_b_slastd$specific.leaf.area
+(heatsc_trpsbtrp_d_b_slastd <- heatscatter(trpsbtrp_d_broad_std_c_n, 
+                                           trpsbtrp_d_broad_std_b_n, 
+                                       pch = 19, cexplot = 0.5, 
+                                       colpal="spectral", 
+                                       add.contour=TRUE, 
+                                       main = "Tropical/subtropical dry broadleaf",
+                                       xlab="", 
+                                       ylab=""))
+
+# 6) tropical and subtropical conif forest ----
+trpsbtrp_con_std_c_n <- j_trp_sbtrp_c_slastd$Standard_Deviation
+trpsbtrp_con_std_b_n <- j_trp_sbtrp_c_slastd$specific.leaf.area
+(heatsc_trpsbtrp_con_slastd <- heatscatter(trpsbtrp_con_std_c_n, 
+                                           trpsbtrp_con_std_b_n, 
+                                           pch = 19, cexplot = 0.5, 
+                                           colpal="spectral", 
+                                           add.contour=TRUE, 
+                                           main = "Tropical/subtropical coniferous",
+                                           xlab="Cardamom", 
+                                           ylab=""))
+
+# 7) tropical subtropical moist broadleaf ----
+trpsbtrp_m_broad_std_c_n <- j_trp_sbtrp_m_br_slastd$Standard_Deviation
+trpsbtrp_m_broad_std_b_n <- j_trp_sbtrp_m_br_slastd$specific.leaf.area
+(heatsc_trpsbtrp_con_slastd <- heatscatter(trpsbtrp_con_std_c_n, 
+                                           trpsbtrp_con_std_b_n, 
+                                           pch = 19, cexplot = 0.5, 
+                                           colpal="spectral", 
+                                           add.contour=TRUE, 
+                                           main = "Tropical/subtropical moist broadleaf",
+                                           xlab="", 
+                                           ylab=""))
+
+# 8) mediterranean forests, woodlands, scrub ----
+med_f_w_scr_std_c_n <- j_med_f_slastd$Standard_Deviation
+med_f_w_scr_std_b_n <- j_med_f_slastd$specific.leaf.area
+(heatsc_med_f_w_scr_slastd <- heatscatter(med_f_w_scr_std_c_n, 
+                                          med_f_w_scr_std_b_n, 
+                                           pch = 19, cexplot = 0.5, 
+                                           colpal="spectral", 
+                                           add.contour=TRUE, 
+                                           main = "Mediterranean woodland and scrubland",
+                                           xlab="Cardamom", 
+                                           ylab=""))
+# dev.off ----
+dev.off()
+
+
 # STATS: R2 ----
 # 1) taiga ----
   # sla mean 
@@ -3070,6 +3314,287 @@ taiga_slastd_r2 <- j_taiga_slastd %>%
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
          sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
 # result for r2 in taiga sla stdev: 0.03539376
+
+# 2) tundra ----
+  # sla mean r2 
+tundra_sla_r2 <- j_tundra_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # results r2 tundra: 0.01005252
+
+  # sla stdev r2 
+tundra_slastd_r2 <- j_tundra_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # result r2 tundra std: 0.002401011
+
+# 3) temp conif forest ----
+  # sla mean r2
+temp_con_sla_r2 <- j_tmp_c_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # result sla mean r2: 0.03572306
+
+  # sla stdev r2
+temp_con_slastd_r2 <- j_tmp_c_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # result sla std r2: 0.02054075
+
+# 4) temp broad mix forest ----
+  # sla mean r2
+temp_b_m_sla_r2 <- j_tmp_b_m_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # result sla mean r2: 0.001306034
+
+  # sla stdev r2
+temp_b_m_slastd_r2 <- j_tmp_b_m_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # results sla stdev r2: 0.0004595572
+
+# 5) tropical and subtropical dry broadleaf ----
+  # sla mean r2
+trpsbtrp_d_b_sla_r2 <- j_trp_sbtrp_d_b_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # result sla mean r2: 0.0005103157
+
+  # sla stdev r2
+trpsbtrp_d_b_slastd_r2 <- j_trp_sbtrp_d_b_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # result sla stdev r2: 0.01081124
+
+# 6) tropical and subtropical conif forest ----
+  # sla mean r2
+trpsbtrp_con_sla_r2 <- j_trp_sbtrp_c_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # result sla mean r2: 0.004434498
+
+  # sla stdev r2
+trpsbtrp_con_slastd_r2 <- j_trp_sbtrp_c_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # result sla stdev r2: 0.000397986
+
+# 7) tropical subtropical moist broadleaf ----
+  # sla mean 
+trpsbtrp_m_b_sla_r2 <- j_trp_sbtrp_m_br_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # results sla mean r2: 0.04343862
+
+  # sla stdev r2 
+trpsbtrp_m_b_slastd_r2 <- j_trp_sbtrp_m_br_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # result sla stdev r2: 9.249042e-06
+
+# 8) mediterranean forests, woodlands, scrub ----
+  # sla mean
+med_f_w_scr_sla_r2 <- j_med_f_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom!=0, butler!=0) %>%
+  mutate(mean_c = mean(cardamom),
+         mean_b = mean(butler),
+         diff_butler = butler-mean_b,
+         diff_butler2 = diff_butler^2,
+         sum_diff_butler2 = sum(diff_butler2),
+         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+           sum((cardamom-mean_c)^2),
+         b_intercept = mean_b - (slope_bf*mean_c),
+         new_b_val = b_intercept + (slope_bf*cardamom),
+         dist_mean_new_b = new_b_val - mean_b,
+         sqrd_dist_b = dist_mean_new_b^2,
+         sum_sqrd_dist_b = sum(sqrd_dist_b),
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+  # results sla mean r2: 0.06407658
+
+  # sla stdev r2
+med_f_w_scr_slastd_r2 <- j_med_f_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std!=0, butler_std!=0) %>%
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+  # results sla stdev r2: 0.000237561
+
 
 
 
