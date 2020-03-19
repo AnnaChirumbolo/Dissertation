@@ -718,7 +718,6 @@ trpext <- extent(trpmat)
 trp <- crop(cardamom_sla, trpext)
 plot(trp[[1]]) # tropical lats
 tropicsSLA_df <- raster::as.data.frame(trp, xy=TRUE)
-raster::zoom(trp)
   # sla std
 trpstd<- crop(cardamom_sla_std, trpext)
 plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png+
@@ -899,37 +898,39 @@ plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
 
 
 
+
+# (heatscatter) saving figure for sla mean by latitudinal range----
+png("./figures/heatsc_latitude_sla.png", width = 40, height = 30, 
+    units = "cm", res = 500)
+par(mfcol = c(2,2))
+# (heatscatter) saving figure for sla stdev by latitudinal range----
+png("./figures/heatsc_latitude_std.png", width = 40, height = 30,
+    units = "cm", res = 500)
+par(mfcol = c(2,2))
+
+
 #### ANALYSIS TROPICS ####
 # heatscatter tropics ----
 # sla mean
 trp_c_sla_n <- trpSLA$cardamom
 trp_b_sla_n <- trpSLA$butler
-
-png("./figures/heatscatter_trps_sla.png", width = 30, height = 15, units = "cm",
-    res = 300)
 (heatsc_sla_trp <- heatscatter(trp_c_sla_n, trp_b_sla_n, pch = 19, 
                                 cexplot = 0.5, colpal="spectral", 
                                 #disco() for all color options / could set to colorblind
-                                add.contour=TRUE, main = "Tropics SLA Mean\n",
-                                xlab="\nCardamom", 
-                                ylab="\nButler"))
-dev.off()
-
-#corr_trp_sla <- chart.Correlation(trpSLA)
+                                add.contour=TRUE, main = "Tropics SLA Mean",
+                                xlab="", 
+                                ylab="Butler"))
 
 # sla stdev 
 trp_c_std_n <- trpSTD$cardamom_std
 trp_b_std_n <- trpSTD$butler_std
 
-png("./figures/heatscatter_trps_slastd.png", width = 30, height = 15, 
-    units = "cm", res = 300)
 (heatsc_slastd_trp <- heatscatter(trp_c_std_n, trp_b_std_n, pch = 19, 
                                cexplot = 0.5, colpal="spectral", 
                                #disco() for all color options / could set to colorblind
-                               add.contour=TRUE, main = "Tropics SLA StDev\n",
-                               xlab="\nCardamom", 
-                               ylab="\nButler"))
-dev.off()
+                               add.contour=TRUE, main = "Tropics SLA StDev",
+                               xlab="", 
+                               ylab="Butler"))
 
 ## stats: R2 ----
 # sla mean
@@ -1030,9 +1031,9 @@ sbtrp_b_sla_n <- sbtrp_joined_SLA$butler
 (heatsc_sla_sbtrp <- heatscatter(sbtrp_c_sla_n, sbtrp_b_sla_n, pch = 19, 
                                   cexplot = 0.5, colpal="spectral", 
                                   #disco() for all color options / could set to colorblind
-                                  add.contour=TRUE, main = "Subtropics SLA Mean\n",
-                                  xlab="\nCardamom", 
-                                  ylab="\nButler"))
+                                  add.contour=TRUE, main = "Subtropics",
+                                  xlab="Cardamom", 
+                                  ylab="Butler"))
 #sla stdev 
 sbtrp_c_slastd_n <- sbtrp_joined_STD$cardamom_std
 sbtrp_b_slastd_n <- sbtrp_joined_STD$butler_std
@@ -1040,10 +1041,9 @@ sbtrp_b_slastd_n <- sbtrp_joined_STD$butler_std
 (heatsc_slastd_sbtrp <- heatscatter(sbtrp_c_slastd_n, sbtrp_b_slastd_n, pch = 19, 
                                   cexplot = 0.5, colpal="spectral", 
                                   #disco() for all color options / could set to colorblind
-                                  add.contour=TRUE, main = "Subtropics SLA StDev\n",
-                                  xlab="\nCardamom", 
-                                  ylab="\nButler"))
-# need to save them panelled 
+                                  add.contour=TRUE, main = "Subtropics",
+                                  xlab="Cardamom", 
+                                  ylab="Butler"))
 ## stats: R2 ----
 # sla mean r2
 sbtrp_r2 <- sbtrp_joined_SLA %>%
@@ -1141,18 +1141,18 @@ tmp_sla_b_n <- tmp_sla$butler
 (heatsc_sla_tmp <- heatscatter(tmp_sla_c_n, tmp_sla_b_n, pch = 19, 
                                cexplot = 0.5, colpal="spectral", 
                                #disco() for all color options / could set to colorblind
-                               add.contour=TRUE, main = "Temperate SLA Mean\n",
-                               xlab="\nCardamom", 
-                               ylab="\nButler"))
+                               add.contour=TRUE, main = "Temperate",
+                               xlab="", 
+                               ylab=""))
   # sla stdev
 tmp_slastd_c_n <- tmp_slastd$cardamom_std
 tmp_slastd_b_n <- tmp_slastd$butler_std
 (heatsc_slastd_tmp <- heatscatter(tmp_slastd_c_n, tmp_slastd_b_n, pch = 19, 
                                   cexplot = 0.5, colpal="spectral", 
                                   #disco() for all color options / could set to colorblind
-                                  add.contour=TRUE, main = "Temperate SLA StDev\n",
-                                  xlab="\nCardamom", 
-                                  ylab="\nButler"))
+                                  add.contour=TRUE, main = "Temperate",
+                                  xlab="", 
+                                  ylab=""))
 ## stats: R2 ----
 # sla mean
 tmp_r2 <- tmp_sla %>%
@@ -1239,6 +1239,24 @@ tmp_rmse_av_slastd <- tmp_slastd %>%
 
 
 #### ANALYSIS POLES ####
+# heatscatter ----
+  # sla mean 
+pl_sla_c_n <- plN$cardamom
+pl_sla_b_n <- plN$butler
+(heatsc_sla_pl <- heatscatter(pl_sla_c_n, pl_sla_b_n, pch = 19, 
+                               cexplot = 0.5, colpal="spectral", 
+                               add.contour=TRUE, main = "N pole",
+                               xlab="Cardamom", 
+                               ylab=""))
+# sla stdev
+pl_slastd_c_n <- plN_std$cardamom_std
+pl_slastd_b_n <- plN_std$butler_std
+(heatsc_slastd_pl <- heatscatter(pl_slastd_c_n, pl_slastd_b_n, pch = 19, 
+                                  cexplot = 0.5, colpal="spectral", 
+                                  #disco() for all color options / could set to colorblind
+                                  add.contour=TRUE, main = "N Pole",
+                                  xlab="Cardamom", 
+                                  ylab=""))
 ## stats: R2 ----
 # sla mean
 pl_r2 <- plN %>%
@@ -1353,12 +1371,17 @@ cold_evergreen_needleleaf <- "./DATA/cold.evergreen.needleleaf.forest_p_1km_s0..
 raster_evergreen_needleleaf <- raster(cold_evergreen_needleleaf)
 plot(raster_evergreen_needleleaf[[1]])
 
+
+# dev.off----
+dev.off()
+
+
 #### OTHER ADDITIONAL STATS: T-TEST AND F-TEST? ####
 
 #############################
 #### SPLITTING BY BIOME #####
 #############################
-# OPEN DATASET: ECOREGIONS17 - where i get the biome masks from ----
+# OPEN DATASET: ECOREGIONS17 - where i get the biomes from ----
 ecoregions17 <- st_read("./DATA/Ecoregions2017/Ecoregions2017.shp")
 st_crs(ecoregions17)
 st_bbox(ecoregions17)
@@ -1604,7 +1627,8 @@ plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
 
 
 
-### VISUAL AND STAT ANALYSIS BY BIOME ----
+
+#### VISUAL AND STAT ANALYSIS BY BIOME ####
 # first thing - turning all masked rasterlayers to dataframes ----
   # sla mean
 # 1) taiga
@@ -1732,6 +1756,7 @@ trpsbtrp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sa
 trpsbtrp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_slastd_b,
                                                       xy = TRUE)
 
+
 # joining dataframes cardamom + butler ----
   # sla mean
 j_taiga_sla <- left_join(taiga_sla_c, taiga_sla_b) 
@@ -1783,7 +1808,8 @@ j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
 j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
                                          trpsbtrp_grass_sav_shr_slastd_b)
 
-
++
+  
 # DIFFERENCE HISTOGRAMS ----
 ## major biomes of interest ##
 # 1) taiga ----
@@ -3274,7 +3300,7 @@ med_f_w_scr_std_b_n <- j_med_f_slastd$specific.leaf.area
 dev.off()
 
 
-# STATS: R2 ----
+# STATS MAJ BIOMES: R2 ----
 # 1) taiga ----
   # sla mean 
 taiga_sla_r2 <- j_taiga_sla %>%
@@ -3594,6 +3620,137 @@ med_f_w_scr_slastd_r2 <- j_med_f_slastd %>%
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
          sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
   # results sla stdev r2: 0.000237561
+
+
+
+
+# STATS MAJ BIOMES: RMSE ----
+# 1) taiga ----
+  # sla mean RMSE: 7.118804
+taiga_sla_rmse_av <- j_taiga_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+  # sla stdev RMSE: 23.34825
+taiga_slastd_rmse_av <- j_taiga_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 2) tundra ----
+# sla mean RMSE: 10.54186
+tundra_sla_rmse_av <- j_tundra_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+# sla stdev RMSE: 25.96876
+tundra_slastd_rmse_av <- j_tundra_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 3) temp conif forest ----
+# sla mean RMSE: 6.536355
+tmp_con_sla_rmse_av <- j_tmp_c_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+# sla stdev RMSE: 33.13217
+temp_con_slastd_rmse_av <- j_tmp_c_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 4) temp broad mix forest ----
+  # sla mean RMSE: 6.104478
+temp_b_m_sla_rmse_av <- j_tmp_b_m_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+# sla stdev RMSE: 31.33329
+temp_b_m_slastd_rmse_av <- j_tmp_b_m_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 5) tropical and subtropical dry broadleaf ----
+  # sla mean RMSE: 9.982661
+trpsbtrp_d_b_sla_rmse_av <- j_trp_sbtrp_d_b_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+  # sla stdev RMSE: 41.17343
+trpsbtrp_d_b_slastd_rmse_av <- j_trp_sbtrp_d_b_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 6) tropical and subtropical conif forest ----
+  # sla mean RMSE: 6.68687
+trpsbtrp_con_sla_rmse_av <- j_trp_sbtrp_c_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+  # sla stdev RMSE: 45.58563
+trpsbtrp_con_slastd_rmse_av <- j_trp_sbtrp_c_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 7) tropical subtropical moist broadleaf ----
+  # sla mean RMSE: 9.121134
+trpsbtrp_m_b_sla_rmse_av <- j_trp_sbtrp_m_br_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+  # sla stdev RMSE: 43.90973
+trpsbtrp_m_b_slastd_rmse_av <- j_trp_sbtrp_m_br_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+# 8) mediterranean forests, woodlands, scrub ----
+  # sla mean RMSE: 7.779244
+med_f_w_scr_sla_rmse_av <- j_med_f_sla %>%
+  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
+  filter(cardamom !=0, butler!=0) %>%
+  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
+  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+
+  # sla stdev RMSE: 41.63794
+med_f_w_scr_slastd_rmse_av <- j_med_f_slastd %>%
+  rename("cardamom_std" = Standard_Deviation, 
+         "butler_std" = specific.leaf.area) %>%
+  filter(cardamom_std !=0, butler_std!=0) %>%
+  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+
+
+#### MAKE A TABLE WITH R2 AND RMSE AVERAGES ####
+
+
+
+#### CHECK FOR LM INCLUDING THE BIOMES ####
 
 
 
