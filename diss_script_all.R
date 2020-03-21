@@ -30,7 +30,9 @@ install.packages("rworldmap")
 install.packages("Hmisc")
 install.packages("formattable")
 install.packages("sf")
-#install.packages("egg")
+install.packages("magick")
+install.packages("webshot")
+webshot::install_phantomjs()
 
 library(ncdf4)
 library(RColorBrewer)
@@ -59,7 +61,8 @@ library(sp)
 library(ggExtra)
 library(formattable)
 library(sf)
-#library(egg)
+library(kableExtra)
+
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
@@ -447,20 +450,6 @@ str(joined_wide)
 heatmap.2(joined_wide,Colv = NA, Rowv = NA)
 
 
-### COMPARING RESULT ESTIMATES ---- 
-
-  # BIAS - BETTER ONLY FOR REGIONAL ESTIMATIONS - for later----
-
-bias <- Metrics::bias(cardamom_sla, butler_sla) ## let's try it?? ASK CC?
-bias # gives overall rel bias, and because there's lots of NAs it gives NA as result?
-butler_sla <- butler_nc$sla  
-butler_sla <- as.data.frame(butler_sla) 
-butler_sla
-cardamom_sla <- cardamom_df$sla
-cardamom_sla <- as.data.frame(cardamom_sla) 
-
-
-
 ## category Components plot ----
 
 categoryComponentsPlot(cardamom_sla, butler_sla, units = "m^2/kg")
@@ -501,11 +490,10 @@ dev.off()
 
 
 
-### R SQUARED CALCULATIONS AND CSV OUTPUT ----
-# Step by step calculation of R2 value sla mean/std correlation ----
-# sla mean ----
-sla_r2 <- joined_sla
-sla_r2 <- sla_r2 %>%
+
+### GLOBAL DATA STATS: r2, rmse, bias ----
+# SLA MEAN
+global_sla_stat <- joined_sla %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
          mean_b = mean(butler),
@@ -519,52 +507,13 @@ sla_r2 <- sla_r2 %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-# resulting R2: 0.0003105955
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)),
+         bias = bias(butler, new_b_val))
 
-# sla stdev ---- 
-
-slastd_r2 <- joined_sla_std
-slastd_r2 <- slastd_r2 %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-# result for sla stdev r2: 0.0002966 
-
-# joined sla r2 results for sla mean and sla stdev ----
-
-r2 <- as.data.frame(c(0.0003105955, 0.0002966)) # R2 results - global
-r2 <- r2 %>%
-  rename("r2" = 1) %>%
-  mutate(parameter = c("SLA mean", "SLA StDev"))
-
-#write.csv(rsq_results, "R2_results.csv")
-
-# RMSE- NEED TO SET AT SAME SCALE????----
-# SLA MEAN
-sla_rmse <- joined_sla %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
-
-# average RMSE value for MEAN SLA 8.335043
-sla_rmse_all <- joined_sla %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# plotting rmse sla mean only 
-(sla_rmse_plot <- ggplot(sla_rmse, aes(x,y,color=rmse))+
+# plotting rmse sla mean 
+(sla_rmse_plot <- ggplot(global_sla_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat = "identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -578,18 +527,27 @@ sla_rmse_all <- joined_sla %>%
 
 # SLA STD
 
-slastd_rmse <- joined_sla_std %>%
-  mutate(rmse = sqrt((cardamom_std - butler_std)^2)) %>%
-  dplyr::select(-cardamom_std, -butler_std) %>%
-  filter(rmse!=0)
-
-# average RMSE value for STDEV SLA 
-slastd_rmse_all <- joined_sla_std %>%
+global_slastd_stat <- joined_sla_std %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+  mutate(meanstd_b = mean(butler_std),
+         meanstd_c = mean(cardamom_std),
+         diff_b_std = butler_std-meanstd_b,
+         sqrd_diff_b = diff_b_std^2,
+         sum_sqrd_diff_b = sum(sqrd_diff_b),
+         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
+                          sum((cardamom_std-meanstd_c)^2)),
+         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
+         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
+         dist_std_new_b = new_bstd_val - meanstd_b,
+         sqrd_dist_std_b = dist_std_new_b^2,
+         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)),
+         bias = bias(butler_std, new_bstd_val))
 
-# plotting rmse sla stdev only 
-(slastd_rmse_plot <- ggplot(slastd_rmse, aes(x,y,color=rmse))+
+# plotting rmse sla stdev  
+(slastd_rmse_plot <- ggplot(global_slastd_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat="identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -605,86 +563,7 @@ slastd_rmse_all <- joined_sla_std %>%
 ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20, 
        units="cm", dpi = 300)
 
-# general RMSE formula
-# sqrt(mean((m - o)^2)), where m is the "ref model" and o is the "observed model"
-
-rmse_all <- rbind(sla_rmse_all, slastd_rmse_all)
-
-
-## trial for other way to calculate rmse ----
-# calculation of the residual - difference between estimated and actual val of the model
-# how much a model disagrees with the actual data
-# sla mean rmse ----
-
-sla_rmse <- sla_r2 %>%
-  mutate(residuals = butler - new_b_val, 
-         resid2 = residuals^2,
-         sum_resid2 = sum(resid2),
-         mean_sum_resid2 = sum_resid2/(11910-1),
-         rmse = sqrt(mean_sum_resid2))
-# sla mean rmse: 4.274008
-
-sla_rmse_byrow <- sla_r2 %>%
-  mutate(residuals = butler - new_b_val,
-         resid2 = residuals^2, 
-      #   mean_resid2 = resid2 / (11910-1), a bit unsure about this? whether to divide it by the dof if there's actually no mean, because the mean it's itself in each single data point
-         rmse_byrow = sqrt(resid2))
-
-# plotting sla mean rmse ----
-(sla_rmse_plot1 <- ggplot(sla_rmse_byrow, aes(x,y,color=rmse_byrow))+
-   geom_jitter(stat = "identity")+
-   theme_classic()+
-   scale_color_gradient(low = "yellow", high = "red4",
-                        limits=c(0,20))+
-   ylab("Latitude\n")+
-   xlab("\nLongitude")+
-   labs(color=" ")+
-   ggtitle("Mean SLA RMSE\n")+
-   theme(plot.title = element_text(face = "bold")))
-
-# sla stdev rmse ----
-slastd_rmse <- slastd_r2 %>%
-  mutate(resid_std = butler_std - new_bstd_val,
-         resid_std2 = resid_std^2, 
-         sum_resid_std2 = sum(resid_std2),
-         mean_sum_resid_std2 = sum_resid_std2/(11910-1),
-         rmse_std = sqrt(mean_sum_resid_std2))
-# sla std rmse: 2.727371
-
-# sla stdev rmse by row ----
-
-slastd_rmse_byrow <- slastd_r2 %>%
-  mutate(resid_std = butler_std - new_bstd_val, 
-         resid_std2 = resid_std^2,
-         rmse_std_byrow = sqrt(resid_std2))
-
-(slastd_rmse_plot1 <- ggplot(slastd_rmse_byrow, aes(x,y,color=rmse_std_byrow))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "red4",
-                         limits = c(0,20))+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-## panel rmse plots and save ----
-(rmse_panelled <- ggarrange(sla_rmse_plot1, slastd_rmse_plot1, ncol = 2))
-ggsave("./figures/panelled_rmse.png", rmse_panelled, width = 50, height = 20,
-       units = "cm", dpi = 300)
-
-## joining rmse results ----
-rmse <- as.data.frame(c(4.274008,2.727371))
-rmse <- rmse %>%
-  rename("rmse"=1)
-
-### global: table with r2 and rmse ----
-
-stat_world <- cbind(r2,rmse)
-formattable(stat_world) # to create the table
-
-## the R2 when im doing a linear regression - NOT BEING USED ATM ----
+## the R2 when im doing a linear regression - NOT BEING USED ATM (all commented)----
 #lm_sla <- lm(butler ~ cardamom, data = joined_sla)
 #plot(lm_sla)
 #summary(lm_sla)$r.squared
@@ -699,6 +578,8 @@ formattable(stat_world) # to create the table
 
 
 ### should i be doing t-test and f-test for sla mean and std respectively? could do 
+
+
 
 
 ################################################################################
@@ -898,7 +779,6 @@ plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
 
 
 
-
 # (heatscatter) saving figure for sla mean by latitudinal range----
 png("./figures/heatsc_latitude_sla.png", width = 40, height = 30, 
     units = "cm", res = 500)
@@ -932,10 +812,9 @@ trp_b_std_n <- trpSTD$butler_std
                                xlab="", 
                                ylab="Butler"))
 
-## stats: R2 ----
+## stats: r2, rmse, bias ----
 # sla mean
-trps_r2 <- trpSLA
-trps_r2 <- trps_r2 %>%
+trps_sla_stat <- trpSLA %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
          mean_b = mean(butler),
@@ -949,12 +828,24 @@ trps_r2 <- trps_r2 %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+         trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)),
+         bias = bias(butler, new_b_val))
 # Multiple R-squared:  0.1271
+# plotting rmse for each data point: sla mean
+(trps_sla_rmse_plot <- ggplot(trps_sla_stat, aes(x,y,color=rmse_row))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("TROPICS Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
 
 # sla stdev
-trps_std_r2 <- trpSTD
-trps_std_r2 <- trps_std_r2 %>%
+trps_std_stat <- trpSTD %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
   mutate(meanstd_b = mean(butler_std),
          meanstd_c = mean(cardamom_std),
@@ -968,43 +859,14 @@ trps_std_r2 <- trps_std_r2 %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         trps_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+         trps_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)),
+         bias = bias(butler_std, new_bstd_val))
 # R2 stdev tropics: 0.0380433
 
-## stats: RMSE ----
-# sla mean 
-  # rmse for each data point
-trp_sla_rmse <- trpSLA %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
-
-  # plotting rmse for each data point 
-(trps_sla_rmse_plot <- ggplot(trp_sla_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TROPICS Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-ggsave("./figures/trps_sla_rmse.png", trps_sla_rmse_plot, width = 30, 
-       height = 10, units = "cm", dpi = 300)
-
-  # average rmse sla mean: 9.464195
-trps_sla_rmse_av <- trpSLA %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# sla stdev 
-  # rmse for each point 
-trp_slastd_rmse <- trpSTD %>%
-  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
-  dplyr::select(-cardamom_std & -butler_std) %>%
-  filter(rmse!=0)
-# plotting rmse for each data point 
-(trp_slastd_rmse_plot <- ggplot(trp_slastd_rmse, aes(x,y,color=rmse))+
+# plotting rmse for each data point: stdev
+(trp_slastd_rmse_plot <- ggplot(trps_std_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat = "identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -1013,13 +875,6 @@ trp_slastd_rmse <- trpSTD %>%
     labs(color=" ")+
     ggtitle("TROPICS SLA StDev RMSE\n")+
     theme(plot.title = element_text(face = "bold")))
-ggsave("./figures/trps_slastd_rmse.png", trp_slastd_rmse_plot, width = 30, 
-       height = 10, units = "cm", dpi = 300)
-
-# average rmse sla stdev: 40.99694
-trps_slastd_rmse_av <- trpSTD %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
 
 
 #### ANALYSIS SUBTROPICS ####
@@ -1044,9 +899,9 @@ sbtrp_b_slastd_n <- sbtrp_joined_STD$butler_std
                                   add.contour=TRUE, main = "Subtropics",
                                   xlab="Cardamom", 
                                   ylab="Butler"))
-## stats: R2 ----
-# sla mean r2
-sbtrp_r2 <- sbtrp_joined_SLA %>%
+## stats: r2, rmse, bias ----
+# sla mean 
+sbtrp_sla_stat <- sbtrp_joined_SLA %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
          mean_b = mean(butler),
@@ -1060,11 +915,24 @@ sbtrp_r2 <- sbtrp_joined_SLA %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sbtrp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+         sbtrp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)),
+         bias = bias(butler, new_b_val))
 # r2 result for mean sla in subtropics: 0.1372143
+# plotting rmse for each data point sla mean
+(sbtrp_sla_rmse_plot <- ggplot(sbtrp_sla_stat, aes(x,y,color=rmse_row))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
 
-# sla stdev r2 
-sbtrp_std_r2 <- sbtrp_joined_STD %>%
+# sla stdev 
+sbtrp_std_stat <- sbtrp_joined_STD %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
   mutate(meanstd_b = mean(butler_std),
          meanstd_c = mean(cardamom_std),
@@ -1078,44 +946,14 @@ sbtrp_std_r2 <- sbtrp_joined_STD %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sbtrp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+         sbtrp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)),
+         bias = bias(butler_std, new_bstd_val))
 # r2 result for sla stdev in subtropics: 0.01140631
-lm_trial <- lm(butler_std  ~ cardamom_std, data = sbtrp_joined_STD)
-summary(lm_trial) # same result as manual calculation 
 
-## stats: RMSE ----
-# rmse sla mean 
-  # for each single point
-sbtrp_sla_rmse <- sbtrp_joined_SLA %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
-  # plotting rmse for each data point
-(sbtrp_sla_rmse_plot <- ggplot(sbtrp_sla_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
-ggsave("./figures/sbtrp_sla_rmse.png", sbtrp_sla_rmse_plot, width = 30, 
-       height = 15, units = "cm", dpi = 300)
-
-# average rmse sla mean subtropics: 7.340305
-subtrp_rmse_av_sla <- sbtrp_joined_SLA %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# sla stdev 
-  # rmse each point
-sbtrp_slastd_rmse <- sbtrp_joined_STD %>%
-  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
-  dplyr::select(-cardamom_std & -butler_std) %>%
-  filter(rmse!=0)
-# plotting rmse for each data point 
-(sbtrp_slastd_rmse_plot <- ggplot(sbtrp_slastd_rmse, aes(x,y,color=rmse))+
+# plotting rmse for each data point stdev
+(sbtrp_slastd_rmse_plot <- ggplot(sbtrp_std_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat = "identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -1124,13 +962,7 @@ sbtrp_slastd_rmse <- sbtrp_joined_STD %>%
     labs(color=" ")+
     ggtitle("SUBTROPICS SLA StDev RMSE\n")+
     theme(plot.title = element_text(face = "bold")))
-ggsave("./figures/sbtrp_slastd_rmse.png", sbtrp_slastd_rmse_plot, width = 30, 
-       height = 10, units = "cm", dpi = 300)
 
-# average rmse sla stdev: 40.03824
-sbtrp_slastd_rmse_av <- sbtrp_joined_STD %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
 
 
 #### ANALYSIS TEMPERATE ####
@@ -1155,7 +987,7 @@ tmp_slastd_b_n <- tmp_slastd$butler_std
                                   ylab=""))
 ## stats: R2 ----
 # sla mean
-tmp_r2 <- tmp_sla %>%
+tmp_sla_stat <- tmp_sla %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
          mean_b = mean(butler),
@@ -1169,12 +1001,24 @@ tmp_r2 <- tmp_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         tmp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
+         tmp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)),
+         bias = bias(butler, new_b_val))
 # result of r2 for temperate sla mean: 0.00640377
+# plotting rmse for each data point: sla mean
+(tmp_sla_rmse_plot <- ggplot(tmp_sla_stat, aes(x,y,color=rmse_row))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("TEMPERATE Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
 
 # sla stdev
-tmp_std_r2 <- tmp_slastd
-tmp_std_r2 <- tmp_std_r2 %>%
+tmp_std_stat <- tmp_slastd %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
   mutate(meanstd_b = mean(butler_std),
          meanstd_c = mean(cardamom_std),
@@ -1188,40 +1032,14 @@ tmp_std_r2 <- tmp_std_r2 %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         tmp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
+         tmp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)),
+         bias = bias(butler_std, new_bstd_val))
 # results for r2 in temperate for sla stdev: 0.0001560524
 
-## stats: RMSE ----
-# sla mean 
-  # each data point
-tmp_sla_rmse <- tmp_sla %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
 # plotting rmse for each data point
-(tmp_sla_rmse_plot <- ggplot(tmp_sla_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TEMPERATE Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-ggsave("./figures/tmp_sla_rmse.png", tmp_sla_rmse_plot, width = 30, 
-       height = 15, units = "cm", dpi = 300)
-  # RMSE average data points: 7.215715
-tmp_rmse_av_sla <- tmp_sla %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-# sla stdev 
-  # each data point 
-tmp_slastd_rmse <- tmp_slastd %>%
-  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
-  dplyr::select(-cardamom_std & -butler_std) %>%
-  filter(rmse!=0)
-# plotting rmse for each data point
-(tmp_slastd_rmse_plot <- ggplot(tmp_slastd_rmse, aes(x,y,color=rmse))+
+(tmp_slastd_rmse_plot <- ggplot(tmp_std_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat = "identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -1229,13 +1047,8 @@ tmp_slastd_rmse <- tmp_slastd %>%
     xlab("\nLongitude")+
     labs(color=" ")+
     ggtitle("TEMPERATE SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
-ggsave("./figures/tmp_slastd_rmse.png", tmp_slastd_rmse_plot, width = 30, 
-       height = 15, units = "cm", dpi = 300)
-  # RMSE average data points: 29.67961
-tmp_rmse_av_slastd <- tmp_slastd %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
+    theme(plot.title = element_text(face = "bold")))
+
 
 
 #### ANALYSIS POLES ####
@@ -1257,9 +1070,9 @@ pl_slastd_b_n <- plN_std$butler_std
                                   add.contour=TRUE, main = "N Pole",
                                   xlab="Cardamom", 
                                   ylab=""))
-## stats: R2 ----
+## stats r2, rmse, bias ----
 # sla mean
-pl_r2 <- plN %>%
+pl_stat <- plN %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
          mean_b = mean(butler),
@@ -1273,11 +1086,23 @@ pl_r2 <- plN %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         pl_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-# result of r2 for temperate sla mean: 0.02279148
+         pl_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         rmse_av = Metrics::rmse(butler, new_b_val), # this is the mean of the mean values
+         rmse_row = sqrt(Metrics::se(butler, new_b_val)), # square root of squared error - each row is already a mean value
+         bias = Metrics::bias(butler, new_b_val)) 
+# plotting rmse for each data point: sla mean
+(pl_sla_rmse_plot <- ggplot(pl_stat, aes(x,y,color=rmse_row))+
+    geom_jitter(stat = "identity")+
+    theme_classic()+
+    scale_color_gradient(low = "yellow", high = "darkred")+
+    ylab("Latitude\n")+
+    xlab("\nLongitude")+
+    labs(color=" ")+
+    ggtitle("N POLE Mean SLA RMSE\n")+
+    theme(plot.title = element_text(face = "bold")))
 
 # sla stdev
-pl_std_r2 <- plN_std %>%
+pl_std_stat <- plN_std %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
   mutate(meanstd_b = mean(butler_std),
          meanstd_c = mean(cardamom_std),
@@ -1291,40 +1116,13 @@ pl_std_r2 <- plN_std %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         pl_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-# results for r2 in temperate for sla stdev: 0.001805205
-## stats: RMSE ----
-# sla mean 
-  # each data point
-pl_sla_rmse <- plN %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  dplyr::select(-cardamom & -butler) %>%
-  filter(rmse!=0)
-# plotting rmse for each data point
-(pl_sla_rmse_plot <- ggplot(pl_sla_rmse, aes(x,y,color=rmse))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("N POLE Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
-ggsave("./figures/Npl_sla_rmse.png", pl_sla_rmse_plot, width = 20, 
-       height = 10, units = "cm", dpi = 300)
-# RMSE average data points: 10.76312
-pl_rmse_av_sla <- plN %>%
-  filter(cardamom !=0, butler!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
+         pl_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         rmse_av = Metrics::rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(Metrics::se(butler_std, new_bstd_val)),
+         bias = bias(butler_std, new_bstd_val))
 
-# sla stdev 
-  # each data point 
-pl_slastd_rmse <- plN_std %>%
-  mutate(rmse = sqrt((cardamom_std-butler_std)^2)) %>%
-  dplyr::select(-cardamom_std & -butler_std) %>%
-  filter(rmse!=0)
-  # plotting rmse for each data point
-(pl_slastd_rmse_plot <- ggplot(pl_slastd_rmse, aes(x,y,color=rmse))+
+  # plotting rmse for each data point: stdev 
+(pl_slastd_rmse_plot <- ggplot(pl_std_stat, aes(x,y,color=rmse_row))+
     geom_jitter(stat = "identity")+
     theme_classic()+
     scale_color_gradient(low = "yellow", high = "darkred")+
@@ -1332,45 +1130,7 @@ pl_slastd_rmse <- plN_std %>%
     xlab("\nLongitude")+
     labs(color=" ")+
     ggtitle("N POLE SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold"))) # this is still showing me only the northern hemisphere...
-ggsave("./figures/Npl_slastd_rmse.png", pl_slastd_rmse_plot, width = 20, 
-       height = 10, units = "cm", dpi = 300)
-
-# RMSE average data points: 25.24611
-pl_rmse_av_slastd <- plN_std %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-
-
-#### ADDITIONAL STATS: BIAS #### not sure how to to it... 
-# trial - tropics ----
-trps_r2 <- trps_r2 %>%
-  mutate(bias_point = new_b_val - butler,
-         sum_error_b = sum(bias_point),
-         bias_av = sum_error_b / 3403) # very close to 0 --> 1.137954e-16
-
-(trps_bias_sla <- ggplot(trps_r2, aes(x,y,color=bias_point))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_viridis(direction = 1)+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("Trial bias tropics sla mean\n")+
     theme(plot.title = element_text(face = "bold")))
-# need to put all results in a single dataframe - incl global and by lat 
-   # not sure if this is right
-
-
-cold_deciduous_forest <-'./DATA/cold.deciduous.forest_p_1km_s0..0cm_2000..2017_v0.1.tif' 
-raster_decidious_forest =raster(cold_deciduous_forest)
-plot(imported_raster[[1]])
-
-cold_evergreen_needleleaf <- "./DATA/cold.evergreen.needleleaf.forest_p_1km_s0..0cm_2000..2017_v0.1.tif"
-raster_evergreen_needleleaf <- raster(cold_evergreen_needleleaf)
-plot(raster_evergreen_needleleaf[[1]])
-
 
 # dev.off----
 dev.off()
@@ -3300,10 +3060,10 @@ med_f_w_scr_std_b_n <- j_med_f_slastd$specific.leaf.area
 dev.off()
 
 
-# STATS MAJ BIOMES: R2 ----
+# STATS MAJ BIOMES: r2, rmse, bias ----
 # 1) taiga ----
   # sla mean 
-taiga_sla_r2 <- j_taiga_sla %>%
+taiga_sla_stat <- j_taiga_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3318,11 +3078,13 @@ taiga_sla_r2 <- j_taiga_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-# result for sla mean: 0.02340087
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = Metrics::bias(butler,new_b_val),
+         rmse_av = Metrics::rmse(butler, new_b_val),
+         rmse_row = sqrt(Metrics::se(butler, new_b_val)))
 
   # sla stdev
-taiga_slastd_r2 <- j_taiga_slastd %>%
+taiga_slastd_stat <- j_taiga_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3338,12 +3100,14 @@ taiga_slastd_r2 <- j_taiga_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-# result for r2 in taiga sla stdev: 0.03539376
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 2) tundra ----
-  # sla mean r2 
-tundra_sla_r2 <- j_tundra_sla %>%
+  # sla mean 
+tundra_sla_stat <- j_tundra_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3358,11 +3122,13 @@ tundra_sla_r2 <- j_tundra_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # results r2 tundra: 0.01005252
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2, 
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = rmse(butler, new_b_val))
 
-  # sla stdev r2 
-tundra_slastd_r2 <- j_tundra_slastd %>%
+  # sla stdev 
+tundra_slastd_stat <- j_tundra_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3378,12 +3144,14 @@ tundra_slastd_r2 <- j_tundra_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # result r2 tundra std: 0.002401011
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 3) temp conif forest ----
-  # sla mean r2
-temp_con_sla_r2 <- j_tmp_c_sla %>%
+  # sla mean
+temp_con_sla_stat <- j_tmp_c_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3398,11 +3166,13 @@ temp_con_sla_r2 <- j_tmp_c_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # result sla mean r2: 0.03572306
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2
-temp_con_slastd_r2 <- j_tmp_c_slastd %>%
+  # sla stdev 
+temp_con_slastd_stat <- j_tmp_c_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3418,12 +3188,14 @@ temp_con_slastd_r2 <- j_tmp_c_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # result sla std r2: 0.02054075
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 4) temp broad mix forest ----
-  # sla mean r2
-temp_b_m_sla_r2 <- j_tmp_b_m_sla %>%
+  # sla mean 
+temp_b_m_sla_stat <- j_tmp_b_m_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3438,11 +3210,13 @@ temp_b_m_sla_r2 <- j_tmp_b_m_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # result sla mean r2: 0.001306034
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2
-temp_b_m_slastd_r2 <- j_tmp_b_m_slastd %>%
+  # sla stdev
+temp_b_m_slastd_stat <- j_tmp_b_m_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3458,12 +3232,14 @@ temp_b_m_slastd_r2 <- j_tmp_b_m_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # results sla stdev r2: 0.0004595572
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 5) tropical and subtropical dry broadleaf ----
-  # sla mean r2
-trpsbtrp_d_b_sla_r2 <- j_trp_sbtrp_d_b_sla %>%
+  # sla mean 
+trpsbtrp_d_b_sla_stat <- j_trp_sbtrp_d_b_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3478,11 +3254,13 @@ trpsbtrp_d_b_sla_r2 <- j_trp_sbtrp_d_b_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # result sla mean r2: 0.0005103157
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2
-trpsbtrp_d_b_slastd_r2 <- j_trp_sbtrp_d_b_slastd %>%
+  # sla stdev 
+trpsbtrp_d_b_slastd_stat <- j_trp_sbtrp_d_b_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3498,12 +3276,14 @@ trpsbtrp_d_b_slastd_r2 <- j_trp_sbtrp_d_b_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # result sla stdev r2: 0.01081124
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 6) tropical and subtropical conif forest ----
-  # sla mean r2
-trpsbtrp_con_sla_r2 <- j_trp_sbtrp_c_sla %>%
+  # sla mean 
+trpsbtrp_con_sla_stat <- j_trp_sbtrp_c_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3518,11 +3298,13 @@ trpsbtrp_con_sla_r2 <- j_trp_sbtrp_c_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # result sla mean r2: 0.004434498
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2
-trpsbtrp_con_slastd_r2 <- j_trp_sbtrp_c_slastd %>%
+  # sla stdev
+trpsbtrp_con_slastd_stat <- j_trp_sbtrp_c_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3538,12 +3320,14 @@ trpsbtrp_con_slastd_r2 <- j_trp_sbtrp_c_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # result sla stdev r2: 0.000397986
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 7) tropical subtropical moist broadleaf ----
   # sla mean 
-trpsbtrp_m_b_sla_r2 <- j_trp_sbtrp_m_br_sla %>%
+trpsbtrp_m_b_sla_stat <- j_trp_sbtrp_m_br_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3558,11 +3342,13 @@ trpsbtrp_m_b_sla_r2 <- j_trp_sbtrp_m_br_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # results sla mean r2: 0.04343862
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2 
-trpsbtrp_m_b_slastd_r2 <- j_trp_sbtrp_m_br_slastd %>%
+  # sla stdev 
+trpsbtrp_m_b_slastd_stat <- j_trp_sbtrp_m_br_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3578,12 +3364,14 @@ trpsbtrp_m_b_slastd_r2 <- j_trp_sbtrp_m_br_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # result sla stdev r2: 9.249042e-06
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 # 8) mediterranean forests, woodlands, scrub ----
   # sla mean
-med_f_w_scr_sla_r2 <- j_med_f_sla %>%
+med_f_w_scr_sla_stat <- j_med_f_sla %>%
   rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
   filter(cardamom!=0, butler!=0) %>%
   mutate(mean_c = mean(cardamom),
@@ -3598,11 +3386,13 @@ med_f_w_scr_sla_r2 <- j_med_f_sla %>%
          dist_mean_new_b = new_b_val - mean_b,
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2)
-  # results sla mean r2: 0.06407658
+         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+         bias = bias(butler, new_b_val),
+         rmse_av = rmse(butler, new_b_val),
+         rmse_row = sqrt(se(butler, new_b_val)))
 
-  # sla stdev r2
-med_f_w_scr_slastd_r2 <- j_med_f_slastd %>%
+  # sla stdev 
+med_f_w_scr_slastd_stat <- j_med_f_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
   filter(cardamom_std!=0, butler_std!=0) %>%
@@ -3618,141 +3408,96 @@ med_f_w_scr_slastd_r2 <- j_med_f_slastd %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b)
-  # results sla stdev r2: 0.000237561
+         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         bias = bias(butler_std, new_bstd_val),
+         rmse_av = rmse(butler_std, new_bstd_val),
+         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 
+#### MAKE A TABLE WITH R2 AND RMSE AVERAGES for all the different subdivisions ####
+Area <- c("global", "tropics", "subtropics",
+         "temperate", "pole (N)", 
+         "tundra", "taiga", "temperate coniferous",
+         "temperate broadleaf/mixed",
+         "tropical and subtropical dry broadleaf",
+         "tropical and subtropical coniferous",
+         "tropical and subtropical moist broadleaf",
+         "mediterranean forest, woodland and scrubland")
+R2 <- c(unique(c(global_sla_stat$trps_sla_r2,
+                 trps_sla_stat$trps_sla_r2, 
+                 sbtrp_sla_stat$sbtrp_sla_r2,
+                 tmp_sla_stat$tmp_sla_r2,
+                 pl_stat$pl_sla_r2, tundra_sla_stat$sla_r2, 
+                 taiga_sla_stat$sla_r2, temp_con_sla_stat$sla_r2,
+                 temp_b_m_sla_stat$sla_r2, trpsbtrp_d_b_sla_stat$sla_r2,
+                 trpsbtrp_con_sla_stat$sla_r2, trpsbtrp_m_b_sla_stat$sla_r2,
+                 med_f_w_scr_sla_stat$sla_r2)))
+RMSE <- c(unique(c(global_sla_stat$rmse_av, trps_sla_stat$rmse_av,
+                   sbtrp_sla_stat$rmse_av, tmp_sla_stat$rmse_av,
+                   pl_stat$rmse_av, tundra_sla_stat$rmse_av,
+                   taiga_sla_stat$rmse_av, temp_con_sla_stat$rmse_av,
+                   temp_b_m_sla_stat$rmse_av, trpsbtrp_d_b_sla_stat$rmse_av,
+                   trpsbtrp_con_sla_stat$rmse_av, trpsbtrp_m_b_sla_stat$rmse_av,
+                   med_f_w_scr_sla_stat$rmse_av)))
+R2_std <-   c(unique(c(global_slastd_stat$sla_std_r2, 
+                       trps_std_stat$trps_sla_std_r2, 
+                       sbtrp_std_stat$sbtrp_sla_std_r2,
+                       tmp_std_stat$tmp_sla_std_r2,
+                       pl_std_stat$pl_sla_std_r2, tundra_slastd_stat$sla_std_r2,
+                       taiga_slastd_stat$sla_std_r2, 
+                       temp_con_slastd_stat$sla_std_r2,
+                       temp_b_m_slastd_stat$sla_std_r2, 
+                       trpsbtrp_d_b_slastd_stat$sla_std_r2,
+                       trpsbtrp_con_slastd_stat$sla_std_r2,
+                       trpsbtrp_m_b_slastd_stat$sla_std_r2, 
+                       med_f_w_scr_slastd_stat$sla_std_r2)))
+RMSE_std <- c(unique(c(global_slastd_stat$rmse_av, 
+                       trps_std_stat$rmse_av, sbtrp_std_stat$rmse_av,
+                       tmp_std_stat$rmse_av,
+                       pl_std_stat$rmse_av, tundra_slastd_stat$rmse_av,
+                       taiga_slastd_stat$rmse_av, temp_con_slastd_stat$rmse_av,
+                       temp_b_m_slastd_stat$rmse_av, 
+                       trpsbtrp_d_b_slastd_stat$rmse_av, 
+                       trpsbtrp_con_slastd_stat$rmse_av, 
+                       trpsbtrp_m_b_slastd_stat$rmse_av,
+                       med_f_w_scr_slastd_stat$rmse_av)))
+bias <- c(unique(c(global_sla_stat$bias, trps_sla_stat$bias,
+                   sbtrp_sla_stat$bias, tmp_sla_stat$bias,
+                   pl_stat$bias, tundra_sla_stat$bias, taiga_sla_stat$bias,
+                   temp_con_sla_stat$bias, temp_b_m_sla_stat$bias,
+                   trpsbtrp_d_b_sla_stat$bias, trpsbtrp_con_sla_stat$bias,
+                   trpsbtrp_m_b_sla_stat$bias, med_f_w_scr_sla_stat$bias)))
+bias_std <- c(unique(c(global_slastd_stat$bias, trps_std_stat$bias,
+                       sbtrp_std_stat$bias, tmp_std_stat$bias,
+                       pl_std_stat$bias, tundra_slastd_stat$bias,
+                       taiga_slastd_stat$bias, temp_con_slastd_stat$bias,
+                       temp_b_m_slastd_stat$bias, trpsbtrp_d_b_slastd_stat$bias,
+                       trpsbtrp_con_slastd_stat$bias,
+                       trpsbtrp_m_b_slastd_stat$bias, 
+                       med_f_w_scr_slastd_stat$bias)))
+stat_results <- as.data.frame(cbind(c(stat_results, Area)))
+stat_results <- stat_results %>%
+  rename("area" = V1) %>%
+  filter(area != 0) %>%
+  mutate(R2 = R2, R2_std = R2_std, RMSE = RMSE, RMSE_std = RMSE_std,
+         bias = bias, bias_std = bias_std)
 
-
-# STATS MAJ BIOMES: RMSE ----
-# 1) taiga ----
-  # sla mean RMSE: 7.118804
-taiga_sla_rmse_av <- j_taiga_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-  # sla stdev RMSE: 23.34825
-taiga_slastd_rmse_av <- j_taiga_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 2) tundra ----
-# sla mean RMSE: 10.54186
-tundra_sla_rmse_av <- j_tundra_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# sla stdev RMSE: 25.96876
-tundra_slastd_rmse_av <- j_tundra_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 3) temp conif forest ----
-# sla mean RMSE: 6.536355
-tmp_con_sla_rmse_av <- j_tmp_c_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# sla stdev RMSE: 33.13217
-temp_con_slastd_rmse_av <- j_tmp_c_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 4) temp broad mix forest ----
-  # sla mean RMSE: 6.104478
-temp_b_m_sla_rmse_av <- j_tmp_b_m_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-# sla stdev RMSE: 31.33329
-temp_b_m_slastd_rmse_av <- j_tmp_b_m_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 5) tropical and subtropical dry broadleaf ----
-  # sla mean RMSE: 9.982661
-trpsbtrp_d_b_sla_rmse_av <- j_trp_sbtrp_d_b_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-  # sla stdev RMSE: 41.17343
-trpsbtrp_d_b_slastd_rmse_av <- j_trp_sbtrp_d_b_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 6) tropical and subtropical conif forest ----
-  # sla mean RMSE: 6.68687
-trpsbtrp_con_sla_rmse_av <- j_trp_sbtrp_c_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-  # sla stdev RMSE: 45.58563
-trpsbtrp_con_slastd_rmse_av <- j_trp_sbtrp_c_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 7) tropical subtropical moist broadleaf ----
-  # sla mean RMSE: 9.121134
-trpsbtrp_m_b_sla_rmse_av <- j_trp_sbtrp_m_br_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-  # sla stdev RMSE: 43.90973
-trpsbtrp_m_b_slastd_rmse_av <- j_trp_sbtrp_m_br_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-# 8) mediterranean forests, woodlands, scrub ----
-  # sla mean RMSE: 7.779244
-med_f_w_scr_sla_rmse_av <- j_med_f_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom !=0, butler!=0) %>%
-  mutate(rmse = sqrt((cardamom-butler)^2)) %>%
-  summarise(rmse= sqrt(mean((cardamom-butler)^2)))
-
-  # sla stdev RMSE: 41.63794
-med_f_w_scr_slastd_rmse_av <- j_med_f_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std !=0, butler_std!=0) %>%
-  summarise(rmse= sqrt(mean((cardamom_std-butler_std)^2)))
-
-
-#### MAKE A TABLE WITH R2 AND RMSE AVERAGES ####
-
-
+(stat_results_table <- stat_results %>%
+  dplyr::rename("Sla Mean (r2)" = R2, "Sla StDev (r2)" = R2_std, 
+                "Sla Mean (rmse)" = RMSE,
+                "Sla StDev (rmse)" = RMSE_std,
+                "Area" = area, "Sla Mean (bias)" = bias,
+                "Sla StDev (bias)" = bias_std) %>%
+  kable(digits = 30, "latex", booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "scale_down"),
+    full_width = F,
+                position = "center", font_size = 10) %>%
+  add_header_above(c(" ", "R2" = 2, "RMSE" = 2, "Bias" = 2), bold = T) %>%
+  kableExtra::group_rows("Latitudinal gradient", 2,5) %>%
+  kableExtra::group_rows("Biome",6,13) %>%
+  as_image(stat_results_table, file= "./figures/table_stat_results.png", 
+           width = 4, dpi = 500))
 
 #### CHECK FOR LM INCLUDING THE BIOMES ####
-
-
-
 
 
