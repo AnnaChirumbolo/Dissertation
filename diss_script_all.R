@@ -6,7 +6,10 @@
 
 ## things to do 
   
-## STIPPLING!!!!!!!!
+# MODEL = BUTLER 
+# OBSERVATIONS = CARDAMOM
+
+## STIPPLING!!!!!!!! to represent uncertainty (units same as that of mean)
 
 # scatter plot - make heatmap --| ASK CODING CLUB / MADE A HEATSCATTER (BETTER REPR) / ASK IF I COULD DO IT WITH THE MAP OF THE WORLD?
 
@@ -62,13 +65,24 @@ library(ggExtra)
 library(formattable)
 library(sf)
 library(kableExtra)
+library(rasterVis)
 
 
 ### opening netcdf, to data frame ----
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
                        varname="sla")
+cardamom_75th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
+                        varname = "75th_percentile")
+cardamom_25th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc",
+                        varname = "25th_percentile")
 cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
                            varname="Standard_Deviation")
+# 75th percentile of cardamom mean values
+plot(cardamom_75th[[1]])
+# 25th percentile of cardamom mean values
+plot(cardamom_25th[[1]])
+# cardamom mean values
+plot(cardamom_sla[[1]])
 
 cardamom_sla_df <- raster::as.data.frame(cardamom_sla, xy = TRUE)
 cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
@@ -76,7 +90,7 @@ cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
 butler_sla <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
                      varname="sla")
 butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
-                         varname ="sla_std")
+                     varname="sla_std")
 butler_sla_df <- raster::as.data.frame(butler_sla, xy = TRUE) 
 butler_sla_std_df <- raster::as.data.frame(butler_sla_std, xy=TRUE)
 
@@ -123,7 +137,6 @@ plot(butler_sla_std[[1]], asp=NA, col=rev(brewer.pal(10,"RdBu")),
 dev.off()
 
 ### visualising diff between CARDAMOM AND BUTLER ----
-setMinMax(cardamom_sla_std[[1]]-butler_sla_std[[1]])
 breakpoints <- c(-25,-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45, 50,
                      55,60,65)
 colors <- c("#27408B", "#36648B", "#4876FF", "#8DEEEE","#000000",
@@ -138,6 +151,7 @@ plot(cardamom_sla[[1]]-butler_sla[[1]], asp=NA, breaks=breakpoints,
      legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
                         side=4, font=1, line=2.3),
      main="Cardamom-Butler SLA Mean\n")
+
 # could re-do it finding out a way to automatise this with package like rcolourbrewer?
 plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
      col=colors, xlab="\nLongitude", 
@@ -145,6 +159,33 @@ plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
                         side=4, font=1, line=2.3),
      main="Cardamom-Butler SLA StDev\n")
 dev.off()
+
+
+### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
+stip_locs <- (butler_sla[[1]] >= cardamom_25th[[1]])*
+  (butler_sla[[1]]<=cardamom_75th[[1]])
+stip_locs <- rasterToPoints(stip_locs)
+stip_locs <- stip_locs[stip_locs[, "layer"] == 1,]
+#(butler_stippling <- levelplot(butler_sla[[1]]))
+stip_locs_95 <- (butler_sla[[1]]>=cardamom_25th[[1]])*
+  (butler_sla[[1]]<=cardamom_95th[[1]])
+stip_locs_95 <- rasterToPoints(stip_locs_95)
+stip_locs_95 <- stip_locs_95[stip_locs_95[, "layer"] ==1,]
+diff_pc <- as.data.frame(stip_locs_95) %>% 
+  setdiff(as.data.frame(stip_locs)) %>% 
+  as.matrix
+png("./figures/stippling_world.png", width = 40, height = 25, 
+    units = "cm", res = 500)
+plot(butler_sla, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
+     xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Butler Sla Mean (stippling)\n")
+points(stip_locs, pch = 18, cex=0.5)
+points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
+dev.off()
+
+
 
 ### Joining datasets ----
 
@@ -877,6 +918,7 @@ trps_std_stat <- trpSTD %>%
     theme(plot.title = element_text(face = "bold")))
 
 
+
 #### ANALYSIS SUBTROPICS ####
 # heatscatter subtrps ----
 # sla mean
@@ -1194,6 +1236,14 @@ masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
 plot(masked_taiga_sla_c[[1]])
 plot(masked_taiga_sla_b[[1]])
 
+# 25th percentile 
+taiga_25pc <- raster::mask(cardamom_25th, boreal_f_taiga)
+plot(taiga_25pc[[1]])
+# 75th percentile
+taiga_75pc <- raster::mask(cardamom_75th, boreal_f_taiga)
+# 95th percentile 
+taiga_95pc <- raster::mask(cardamom_95th, boreal_f_taiga)
+
 # sla stdev 
 masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
 masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
@@ -1388,6 +1438,10 @@ plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
 
 
 
+## stippling by biome 
+
+
+
 #### VISUAL AND STAT ANALYSIS BY BIOME ####
 # first thing - turning all masked rasterlayers to dataframes ----
   # sla mean
@@ -1568,7 +1622,7 @@ j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
 j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
                                          trpsbtrp_grass_sav_shr_slastd_b)
 
-+
+
   
 # DIFFERENCE HISTOGRAMS ----
 ## major biomes of interest ##
@@ -2779,6 +2833,7 @@ trpsbtrp_grass_sav_shr_slastd_h_merge <- melt(trpsbtrp_grass_sav_shr_slastd_h_me
     ylim(-200, 200)+
     xlim(0, 70))
 
+
 ## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla mean ----
   # major biomes 1
 (panel_majbiome_hist_diff <- ggarrange(taiga_sla_hist_diff_plot,
@@ -3036,8 +3091,8 @@ trpsbtrp_con_std_b_n <- j_trp_sbtrp_c_slastd$specific.leaf.area
 # 7) tropical subtropical moist broadleaf ----
 trpsbtrp_m_broad_std_c_n <- j_trp_sbtrp_m_br_slastd$Standard_Deviation
 trpsbtrp_m_broad_std_b_n <- j_trp_sbtrp_m_br_slastd$specific.leaf.area
-(heatsc_trpsbtrp_con_slastd <- heatscatter(trpsbtrp_con_std_c_n, 
-                                           trpsbtrp_con_std_b_n, 
+(heatsc_trpsbtrp_con_slastd <- heatscatter(trpsbtrp_m_broad_std_c_n, 
+                                           trpsbtrp_m_broad_std_b_n, 
                                            pch = 19, cexplot = 0.5, 
                                            colpal="spectral", 
                                            add.contour=TRUE, 
@@ -3058,6 +3113,8 @@ med_f_w_scr_std_b_n <- j_med_f_slastd$specific.leaf.area
                                            ylab=""))
 # dev.off ----
 dev.off()
+
+
 
 
 # STATS MAJ BIOMES: r2, rmse, bias ----
@@ -3083,7 +3140,38 @@ taiga_sla_stat <- j_taiga_sla %>%
          rmse_av = Metrics::rmse(butler, new_b_val),
          rmse_row = sqrt(Metrics::se(butler, new_b_val)))
 
-  # sla stdev
+# visually representing the results 
+# let's turn the dataframe into an nc file for plotting like raster data
+par(mfrow = c(1,1))
+
+xy <- taiga_sla_stat[,c(1,2)]
+taiga_sla_rmse <- taiga_sla_stat %>%
+  dplyr::select(x,y,rmse_row)
+spatial_taiga <- SpatialPointsDataFrame(coords = xy, data = taiga_sla_rmse,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+my.sf.point <- st_as_sf(x = taiga_sla_rmse, 
+                        coords = c("x", "y"),
+                        crs = "+proj=longlat +datum=WGS84")
+plot(my.sf.point)
+?SpatialPointsDataFrame
+# interactive map:
+#library(mapview)
+#mapview(my.sf.point)
+
+install.packages("ggthemes")
+library(ggthemes)
+# convert to sp object if needed
+my.sp.point <- as(my.sf.point, "Spatial")
+plot(my.sp.point[[1]])
+(taiga.sla.rmse.map <- ggplot(taiga_sla_rmse, aes(x = x, y = y, color = rmse_row)) +
+    borders("world", ylim = c(50, 100), colour = "gray40", 
+            fill = "gray40", size = 0.3) +
+    # get a high resolution map of the world
+    theme_map() +
+    geom_jitter(alpha = 0.8, size = 2)+
+    scale_color_gradientn(colors = terrain.colors(5)))
+
+# sla stdev
 taiga_slastd_stat <- j_taiga_slastd %>%
   rename("cardamom_std" = Standard_Deviation, 
          "butler_std" = specific.leaf.area) %>%
@@ -3104,6 +3192,7 @@ taiga_slastd_stat <- j_taiga_slastd %>%
          bias = bias(butler_std, new_bstd_val),
          rmse_av = rmse(butler_std, new_bstd_val),
          rmse_row = sqrt(se(butler_std, new_bstd_val)))
+plot(taiga_sla_stat$rmse_row)
 
 # 2) tundra ----
   # sla mean 
@@ -3498,6 +3587,11 @@ stat_results <- stat_results %>%
   as_image(stat_results_table, file= "./figures/table_stat_results.png", 
            width = 4, dpi = 500))
 
-#### CHECK FOR LM INCLUDING THE BIOMES ####
+
+
+
+
+
+# im not sure im understanding how to fucking calculate bias and rmse for fucks sake
 
 
