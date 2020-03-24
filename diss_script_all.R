@@ -36,6 +36,7 @@ install.packages("sf")
 install.packages("magick")
 install.packages("webshot")
 webshot::install_phantomjs()
+install.packages("overlapping")
 
 library(ncdf4)
 library(RColorBrewer)
@@ -66,6 +67,7 @@ library(formattable)
 library(sf)
 library(kableExtra)
 library(rasterVis)
+library(overlapping)
 
 
 ### opening netcdf, to data frame ----
@@ -75,6 +77,8 @@ cardamom_75th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc",
                         varname = "75th_percentile")
 cardamom_25th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc",
                         varname = "25th_percentile")
+cardamom_95th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc",
+                       varname = "95th_percentile")
 cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
                            varname="Standard_Deviation")
 # 75th percentile of cardamom mean values
@@ -162,6 +166,7 @@ dev.off()
 
 
 ### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
+# sla mean
 stip_locs <- (butler_sla[[1]] >= cardamom_25th[[1]])*
   (butler_sla[[1]]<=cardamom_75th[[1]])
 stip_locs <- rasterToPoints(stip_locs)
@@ -183,6 +188,29 @@ plot(butler_sla, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
      main="Butler Sla Mean (stippling)\n")
 points(stip_locs, pch = 18, cex=0.5)
 points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
+dev.off()
+
+# sla stdev 
+stip_locs_std <- (butler_sla_std[[1]] >= cardamom_25th[[1]])*
+  (butler_sla_std[[1]]<=cardamom_75th[[1]])
+stip_locs_std <- rasterToPoints(stip_locs_std)
+stip_locs_std <- stip_locs_std[stip_locs_std[, "layer"] == 1,]
+#(butler_stippling <- levelplot(butler_sla[[1]]))
+stip_locs_std_95 <- (butler_sla_std[[1]]>=cardamom_25th[[1]])*
+  (butler_sla_std[[1]]<=cardamom_95th[[1]])
+stip_locs_std_95 <- rasterToPoints(stip_locs_std_95)
+stip_locs_std_95 <- stip_locs_std_95[stip_locs_std_95[, "layer"] ==1,]
+diff_pc_std <- as.data.frame(stip_locs_std_95) %>% 
+  setdiff(as.data.frame(stip_locs_std)) %>% 
+  as.matrix # no difference - the points lay exclusively within 25-75pc here (for stdev)
+png("./figures/stippling_std_world.png", width = 40, height = 25, 
+    units = "cm", res = 500)
+plot(butler_sla_std, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
+     xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA StDev (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Butler Sla StDev (stippling)\n")
+points(stip_locs_std, pch = 18, cex=0.5)
 dev.off()
 
 
@@ -286,8 +314,8 @@ joined_matrix <- as.matrix(joined_sla_nocoord)
 similarity.matrix <- apply(joined_matrix, 2, function(x)rowSums(x==joined_matrix))
 diag(similarity.matrix)<-0
 
-  # HEATSCATTERS ----
-  # creating numeric vectors of sla mean and sla stdev to inpu in heatscatter ----
+#### HEATSCATTERS ####
+  # creating numeric vectors of sla mean and sla stdev to input in heatscatter ----
 cardamom_sla_num <- cardamom_sla_df$sla
 butler_sla_num <- butler_sla_df$specific.leaf.area
 cardamom_sla_std_num <- cardamom_sla_std_df$Standard_Deviation
@@ -350,7 +378,8 @@ joined_slastd_density <- joined_sla_std %>%
     scale_fill_discrete(name="Specific Leaf Area StDev", 
                         labels=c("Cardamom", "Butler")))
 
-  # calc diff between HISTOGRAM areas? PANELLED PLOTS ----
+
+#### HISTOGRAMS ####
   # 1) SLA:
 hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
 hist_slastd_data <- hist_slastd_data %>%
@@ -422,54 +451,6 @@ diff_hist <- write.csv(diff_dens, "difference_hist.csv")
 
 
 
-### scatterplot: by ID (unique lat x lon point) ----
-
-(scatter_degree <- ggplot()+
-   geom_point(new_joined, mapping = aes(degree,sla, colour="Cardamom"), 
-            #  colour= "#8B0000",
-              alpha=0.7)+
-   geom_point(new_joined, mapping = aes(degree,specific.leaf.area, colour="Butler"), 
-             # colour="#EEB422", 
-              alpha=0.7)+
-   scale_color_manual(name="Specific Leaf Area", values= c("#8B0000", "#EEB422"))+
-   theme(legend.position =c(0.9,0.8), 
-         panel.background = element_rect(fill = "white", colour = "black"))+
-   xlab("\nID (single lat/lon point)")+
-   ylab("Specific Leaf Area (m^2/kg)\n"))
-
-ggsave("scatter_by1x1degree.jpg", plot = last_plot(), width = 20, height = 10,
-       dpi = 300)
-
-### scatterplot by single lat and lon, panelled together ----
-
-(scatter_bylon <- ggplot()+
-   geom_point(new_joined, mapping = aes(x,sla, colour="Cardamom"), alpha=0.7)+
-   geom_point(new_joined, mapping = aes(x,specific.leaf.area, colour="Butler"),
-              alpha=0.7)+
-   scale_color_manual(name="Specific Leaf Area", values= c("#8B0000", "#EEB422"))+
-   theme(legend.position =c(0.9,0.8), 
-         panel.background = element_rect(fill = "white", colour = "black"))+
-   scale_y_continuous(sec.axis = ~ .)+
-   xlab("\n Longitude (West to East)")+
-   ylab("Specific Leaf Area (m^2/kg)\n"))
-
-
-(scatter_bylat <- ggplot()+
-    geom_point(new_joined, mapping = aes(sla,y.y,colour="Cardamom"), alpha=0.7)+
-    geom_point(new_joined, mapping = aes(specific.leaf.area,y.y, colour="Butler"),
-               alpha=0.7)+
-    scale_color_manual(name="Specific Leaf Area", values= c("#8B0000", "#EEB422"))+
-    theme(legend.position =c(0.9,0.8), 
-          panel.background = element_rect(fill = "white", colour = "black"))+
-    xlab("\nSpecific Leaf Area (m^2/kg)")+
-    ylab("Latitude (North to South)\n"))
-
-library(gridExtra)
-panelled_scatter <- grid.arrange(scatter_bylat, scatter_bylon, ncol=2)
-
-ggsave("panel_scatter_bycoord.jpg", plot = panelled_scatter, width = 20, height = 10,
-       dpi = 300)
-
 
 ### heatmap ----
 
@@ -510,6 +491,7 @@ sla_only <- joined_sla %>%
 sla_only <- as.matrix(sla_only)
  
 sla_only<- rcorr(sla_only, type="pearson")
+
 
 
 ## CORRELATION CHART BETWEEN SLA PARAMETERS  ----
@@ -1236,6 +1218,7 @@ masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
 plot(masked_taiga_sla_c[[1]])
 plot(masked_taiga_sla_b[[1]])
 
+## stippling for taiga----
 # 25th percentile 
 taiga_25pc <- raster::mask(cardamom_25th, boreal_f_taiga)
 plot(taiga_25pc[[1]])
@@ -1243,6 +1226,29 @@ plot(taiga_25pc[[1]])
 taiga_75pc <- raster::mask(cardamom_75th, boreal_f_taiga)
 # 95th percentile 
 taiga_95pc <- raster::mask(cardamom_95th, boreal_f_taiga)
+## stippling for taiga
+stip_locs_taiga <- (masked_taiga_sla_b[[1]] >= taiga_25pc[[1]])*
+  (masked_taiga_sla_b[[1]]<=taiga_75pc[[1]])
+stip_locs_taiga <- rasterToPoints(stip_locs_taiga)
+stip_locs_taiga <- stip_locs_taiga[stip_locs_taiga[, "layer"] == 1,]
+#(butler_stippling <- levelplot(butler_sla[[1]]))
+stip_locs_taiga95 <- (masked_taiga_sla_b[[1]]>=taiga_25pc[[1]])*
+  (masked_taiga_sla_b[[1]]<=taiga_95pc[[1]])
+stip_locs_taiga95 <- rasterToPoints(stip_locs_taiga95)
+stip_locs_taiga95 <- stip_locs_taiga95[stip_locs_taiga95[, "layer"] ==1,]
+diff_pc <- as.data.frame(stip_locs_taiga95) %>% 
+  setdiff(as.data.frame(stip_locs_taiga)) %>% 
+  as.matrix
+png("./figures/stippling_world.png", width = 40, height = 25, 
+    units = "cm", res = 500)
+plot(masked_taiga_sla_b, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
+     xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Butler Sla Mean (stippling)\n")
+points(stip_locs_taiga, pch = 18, cex=0.5)
+points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
+dev.off()
 
 # sla stdev 
 masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
@@ -1437,11 +1443,6 @@ plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
 
 
 
-
-## stippling by biome 
-
-
-
 #### VISUAL AND STAT ANALYSIS BY BIOME ####
 # first thing - turning all masked rasterlayers to dataframes ----
   # sla mean
@@ -1597,7 +1598,7 @@ j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c,
 
 ## --- ##
 
-  # sla stdev
+  # sla stdev----
 j_taiga_slastd <- left_join(taiga_slastd_c, taiga_slastd_b)
 j_tundra_slastd <- left_join(tundra_slastd_c, tundra_slastd_b)
 j_tmp_c_slastd <- left_join(tmp_conif_slastd_c, tmp_conif_slastd_b)
@@ -1622,6 +1623,35 @@ j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
 j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
                                          trpsbtrp_grass_sav_shr_slastd_b)
 
+
+  
+
+#### percentage overlap density plots ####
+# let's try with a loop
+# creating a list that joins all different datasets together - we can start with 8
+biome.list <- list(j_taiga_sla, j_tundra_sla, j_tmp_c_sla,
+                   j_tmp_b_m_sla, j_trp_sbtrp_d_b_sla,
+                   j_trp_sbtrp_c_sla, j_trp_sbtrp_m_br_sla,
+                   j_med_f_sla)
+biome.list.n <- list()
+density.plot <- list()
+for (i in 1:length(biome.list)){
+  biome.list[[i]] <- biome.list[[i]]%>%
+    filter(sla!=0,specific.leaf.area!=0) %>%
+    rename("cardamom" = sla, "butler" = specific.leaf.area) 
+  list <- list(cardamom=biome.list[[i]][["cardamom"]],
+               butler=biome.list[[i]][["butler"]])
+  name <- paste(i,"n",sep = "_")
+  biome.list.n[[name]] <- list
+  for (j in 1:length(biome.list.n)){
+   # density.plot.name <- paste("biome",j,"density_plot", sep = "_")
+    plot_name <- paste("./figures/biome",i,"density_overlap.png",sep = "_")
+    png(plot_name, width = 40, height = 20, units = "cm", res = 400)
+    density.plot[[j]] <- my.overlap(biome.list.n[[j]], plot = TRUE)
+   # print(density.plot[[j]])
+    dev.off()
+  }
+}
 
   
 # DIFFERENCE HISTOGRAMS ----
@@ -1652,24 +1682,6 @@ setnames(taiga_sla_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
                                                                 "Butler"))
 taiga_sla_hist_diff_melt <- melt(taiga_sla_hist_diff, id.vars = c("xmin","xmax"), 
                          measure.vars = c("Cardamom","Difference","Butler"))
-
-(taiga_sla_hist_diff_plot <- ggplot(taiga_sla_hist_diff_melt, 
-                                    aes(xmin=xmin, xmax=xmax,
-                                        ymax=value,ymin=0,
-                                        group=variable,
-                                        fill=variable, 
-                                        color=variable,
-                                        alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-#   xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Taiga\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 65)+
-    ylim(-150,400))  
 
       # sla stdev ----
 j_taiga_slastd_h <- j_taiga_slastd %>%
