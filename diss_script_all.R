@@ -71,6 +71,7 @@ library(overlapping)
 
 
 ### opening netcdf, to data frame ----
+# opening the .nc files 
 cardamom_sla <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
                        varname="sla")
 cardamom_75th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
@@ -81,34 +82,28 @@ cardamom_95th <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc",
                        varname = "95th_percentile")
 cardamom_sla_std <- raster("./DATA/CARDAMOM_2001_2010_LCMA_zeros.nc", 
                            varname="Standard_Deviation")
-# 75th percentile of cardamom mean values
-plot(cardamom_75th[[1]])
-# 25th percentile of cardamom mean values
-plot(cardamom_25th[[1]])
-# cardamom mean values
-plot(cardamom_sla[[1]])
-
-cardamom_sla_df <- raster::as.data.frame(cardamom_sla, xy = TRUE)
-cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
-
 butler_sla <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
                      varname="sla")
 butler_sla_std <- raster("./DATA/Butler_Leaftraits_Processed_1x1_zeros.nc", 
-                     varname="sla_std")
+                         varname="sla_std")
+
+# making .nc files into data frames 
+cardamom_sla_df <- raster::as.data.frame(cardamom_sla, xy = TRUE)
+cardamom_sla_std_df <- raster::as.data.frame(cardamom_sla_std, xy=TRUE)
 butler_sla_df <- raster::as.data.frame(butler_sla, xy = TRUE) 
 butler_sla_std_df <- raster::as.data.frame(butler_sla_std, xy=TRUE)
 
-### visualising sla from both datasets DIFF SCALES ----
-png("./figures/plot_sla_DIFFSCALES.png", width = 50, height = 20, units = "cm", res = 200)
-par(mfrow=c(1,2), oma = c(0,3,8,0) + 0.1, mar = c(7,0,2,8) + 0.1, new=FALSE)
-plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
-     main="Cardamom\n")
-#raster::image(cardamom_sla[[1]], asp=NA, col= rev(brewer.pal(10,"RdBu")))
-plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")),
-     legend.args=list(text='\nSpecific Leaf Area (m2.kg-1)', side=4, font=2, line=2.3),
-     main="Butler\n")
-#grid.text("Specific Leaf Area (m2.kg-1)", x=unit(0.95, "npc"), y=unit(0.50, "npc"), rot=-90)
-dev.off()
+# basic data manipulation
+cardamom_sla_df <- cardamom_sla_df %>%
+  rename("cardamom" = sla)
+cardamom_sla_std_df <- cardamom_sla_std_df %>%
+  rename("cardamom_std" = Standard_Deviation)
+butler_sla_df <- butler_sla_df %>%
+  rename("butler" = specific.leaf.area)
+butler_sla_std_df <- butler_sla_std_df %>%
+  rename("butler_std" = specific.leaf.area)
+joined_sla <- left_join(cardamom_sla_df, butler_sla_df) 
+joined_sla_std <- left_join(cardamom_sla_std_df, butler_sla_std_df)
 
 ### visualising sla from both datasets SAME SCALE ----
 
@@ -167,17 +162,16 @@ dev.off()
 
 ### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
 # sla mean
-stip_locs <- (butler_sla[[1]] >= cardamom_25th[[1]])*
+gl_stip_locs <- (butler_sla[[1]] >= cardamom_25th[[1]])*
   (butler_sla[[1]]<=cardamom_75th[[1]])
-stip_locs <- rasterToPoints(stip_locs)
-stip_locs <- stip_locs[stip_locs[, "layer"] == 1,]
-#(butler_stippling <- levelplot(butler_sla[[1]]))
-stip_locs_95 <- (butler_sla[[1]]>=cardamom_25th[[1]])*
+gl_stip_locs <- rasterToPoints(gl_stip_locs)
+gl_stip_locs <- gl_stip_locs[gl_stip_locs[, "layer"] == 1,]
+gl_stip_locs_95 <- (butler_sla[[1]]>=cardamom_25th[[1]])*
   (butler_sla[[1]]<=cardamom_95th[[1]])
-stip_locs_95 <- rasterToPoints(stip_locs_95)
-stip_locs_95 <- stip_locs_95[stip_locs_95[, "layer"] ==1,]
-diff_pc <- as.data.frame(stip_locs_95) %>% 
-  setdiff(as.data.frame(stip_locs)) %>% 
+gl_stip_locs_95 <- rasterToPoints(gl_stip_locs_95)
+gl_stip_locs_95 <- gl_stip_locs_95[gl_stip_locs_95[, "layer"] ==1,]
+diff_pc <- as.data.frame(gl_stip_locs_95) %>% 
+  setdiff(as.data.frame(gl_stip_locs)) %>% 
   as.matrix
 png("./figures/stippling_world.png", width = 40, height = 25, 
     units = "cm", res = 500)
@@ -214,31 +208,6 @@ points(stip_locs_std, pch = 18, cex=0.5)
 dev.off()
 
 
-
-### Joining datasets ----
-
-joined_sla <- left_join(cardamom_sla_df, butler_sla_df) 
-joined_sla_std <- left_join(cardamom_sla_std_df, butler_sla_std_df)
-
-joined_sla <- joined_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area)
-joined_sla_std <- joined_sla_std %>%
-  rename("cardamom_std" = Standard_Deviation, "butler_std" = specific.leaf.area)
-
-  # new datasets with removed NAs/x-y coords from the joined datasets 
-joined_sla_noNA <- joined_sla %>%
-  filter(cardamom!=0&butler!=0)
-joined_sla_nocoord <- joined_sla %>%
-  dplyr::select(-x,-y)
-joined_sla_nocoordNA <- joined_sla_nocoord %>%
-  filter(cardamom!=0 & butler != 0)
-
-joined_sla_std_noNA <- joined_sla_std %>%
-  filter(cardamom_std !=0 & butler_std != 0)
-joined_sla_std_nocoord <- joined_sla_std %>%
-  dplyr::select(-x,-y)
-joined_sla_std_nocoordNA <- joined_sla_nocoord %>%
-  filter(cardamom!=0 & butler != 0)
 
 
 ### 1) DATA EXPLORATION 1 - SERIES OF PLOTS ----
@@ -379,97 +348,26 @@ joined_slastd_density <- joined_sla_std %>%
                         labels=c("Cardamom", "Butler")))
 
 
-#### HISTOGRAMS ####
-  # 1) SLA:
-hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
-hist_slastd_data <- hist_slastd_data %>%
-  select(count, xmin, xmax, group) 
-# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
-slastd_hist_c <- hist_slastd_data[group==1]
-slastd_hist_b <- hist_slastd_data[group==2]
-diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), 
-                          suffixes = c(".c",".b"), allow.cartesian=TRUE)
-    #Error in vecseq(f__, len__, if (allow.cartesian || notjoin || !anyDuplicated(f__,  : 
-    #Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). 
-    #Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
-
-diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
-setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                "Butler"))
-diff_slastd_melt <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
-                         measure.vars = c("Cardamom","Difference","Butler"))
-
-(diff_histstd_plot <- ggplot(diff_slastd_melt, aes(xmin=xmin, xmax=xmax, 
-                                                   ymax=value,ymin=0, 
-                                                   group=variable, 
-                                         fill=variable, color=variable, 
-                                         alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    theme(legend.title = element_blank()))  ## figure out how to show the overlap 
-# the whole length it says the difference between cardamom-butler!
-ggsave("./figures/Difference_hist.png", diff_dens_plot, width = 30, height = 20,
-       units = "cm", dpi = 300)
+#### PERCENTAGE OVERLAP DENSITY PLOTS ####
+# sla mean ----
+joined_sla <- joined_sla %>%
+  filter(sla!=0, specific.leaf.area!=0)
+sla_n <- list(cardamom = joined_sla$sla,
+       butler = joined_sla$specific.leaf.area) 
+png("./figures/global_density_overlap.png", width = 40, height = 20,
+    units = "cm", res = 400)
+sla_overl<- my.overlap(sla_n, plot = TRUE)
+dev.off()
     
-  # save the file of difference SLA STDEV to csv
-diff_hist <- write.csv(diff_dens, "difference_hist_slastd.csv")
-
-  # 2) SLA STDEV:
-hist_slastd_data <- as.data.table(ggplot_build(slastd_hist)$data[1])
-hist_slastd_data <- hist_slastd_data %>%
-  select(count, xmin, xmax, group)
-str(hist_slastd_data)
-slastd_hist_c <- hist_slastd_data[group==1]
-slastd_hist_b <- hist_slastd_data[group==2]
-diff_slastd_hist <- merge(slastd_hist_c, slastd_hist_b, by=c("xmin","xmax"), suffixes = c(".c",".b"), allow.cartesian=TRUE)
-#Error in vecseq(f__, len__, if (allow.cartesian || notjoin || !anyDuplicated(f__,  : 
-#Join results in 3094 rows; more than 1024 = nrow(x)+nrow(i). Check for duplicate key values in i each of which join to the same group in x over and over again. If that's ok, try by=.EACHI to run j for each group to avoid the large allocation. If you are sure you wish to proceed, rerun with allow.cartesian=TRUE. Otherwise, please search for this error message in the FAQ, Wiki, Stack Overflow and data.table issue tracker for advice.
-diff_slastd_hist <- diff_slastd_hist[,Difference:=count.c-count.b]
-setnames(diff_slastd_hist, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                "Butler"))
-diff_slastd_hist1 <- melt(diff_slastd_hist, id.vars = c("xmin","xmax"), 
-                          measure.vars = c("Cardamom","Difference","Butler"))
-
-(diff_histstd_plot <- ggplot(diff_slastd_hist1, aes(xmin=xmin, xmax=xmax, ymax=value,ymin=0, group=variable, 
-                                              fill=variable, color=variable, alpha = 0.9))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    theme(legend.title = element_blank())) # the whole length it says the difference between cardamom-butler!
-ggsave("./figures/Difference_hist_slastd.png", diff_histstd_plot, width = 30, height = 20, units = "cm", 
-       dpi = 300)
-
-# save the file of difference SLA to csv
-diff_hist <- write.csv(diff_dens, "difference_hist.csv")
-
-
-
-
-### heatmap ----
-
-new_joined <- left_join(cardamom_df, butler_nc) %>%
-  filter(sla!=0 & specific.leaf.area!=0)
-
-#new_joined <- new_joined %>%
- # select(-degree) 
-
-new_joined <- new_joined %>%
-  rename("cardamom"=sla,"butler"=specific.leaf.area)%>%
-  gather(key=dataset,value=sla,-x,-y)
-
-
-joined_wide <- as.matrix(joined_wide)
-rownames(joined_wide) <- joined_wide[, 1]
-joined_wide <- joined_wide[, -1];
-str(joined_wide)
-heatmap.2(joined_wide,Colv = NA, Rowv = NA)
+# sla stdev ----
+joined_sla_std <- joined_sla_std %>%
+  filter(Standard_Deviation!=0, specific.leaf.area!=0)
+slastd_n <- list(cardamom_std = joined_sla_std$Standard_Deviation,
+                 butler_std = joined_sla_std$specific.leaf.area)
+png("./figures/global_std_density_overlap.png", width = 40,
+    height = 20, units = "cm", res = 400)
+sla_std_overl <- my.overlap(slastd_n, plot = T)
+dev.off()
 
 
 ## category Components plot ----
@@ -619,12 +517,12 @@ ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20,
 trpmat <- matrix(data <- c(-180,180,-23.5,23.5), nrow = 2, ncol = 2,
                  byrow = TRUE)
 trpext <- extent(trpmat)
-trp <- crop(cardamom_sla, trpext)
-plot(trp[[1]]) # tropical lats
-tropicsSLA_df <- raster::as.data.frame(trp, xy=TRUE)
+trp_c <- crop(cardamom_sla, trpext)
+#plot(trp[[1]]) # tropical lats
+tropicsSLA_df <- raster::as.data.frame(trp_c, xy=TRUE)
   # sla std
 trpstd<- crop(cardamom_sla_std, trpext)
-plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png+
+#plot(trpstd[[1]], asp=NA) # height to fix when (and if) saving it as png+
 tropicsSTD_df <- raster::as.data.frame(trpstd, xy=TRUE)
 
 # butler: 
@@ -637,30 +535,24 @@ trp_b_std_df <- raster::as.data.frame(trp_b_std, xy=TRUE)
 
 # joined tropics cardamom + butler
 trpSLA <- left_join(tropicsSLA_df,trp_b_df)
-trpSLA <- trpSLA %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area)
 trpSTD <- left_join(tropicsSTD_df, trp_b_std_df)
-trpSTD <- trpSTD %>%
-  rename("cardamom_std" =Standard_Deviation, "butler_std" = specific.leaf.area)
-
   # subtropics ----
 # cardamom:
   # sla mean 
 sbtrpmatN <- matrix(data <- c(-180,23.5,180,35), nrow = 2, ncol = 2)
 sbtrpextN <- extent(sbtrpmatN)  
 sbtrpN <- crop(cardamom_sla, sbtrpextN)
-plot(sbtrpN[[1]])
+#plot(sbtrpN[[1]])
 sbtrpN_df <- raster::as.data.frame(sbtrpN, xy = TRUE)
 sbtrpmatS <- matrix(data <- c(-180,-23.5,180,-35), nrow = 2, ncol = 2)
 sbtrpextS <- extent(sbtrpmatS)
 sbtrpS <- crop(cardamom_sla, sbtrpextS)
-plot(sbtrpS[[1]])
+#plot(sbtrpS[[1]])
 sbtrpS_df <- raster::as.data.frame(sbtrpS, xy = TRUE)
 
 # merging two datasets from two hemispheres to have them in one dataframe
 sbtrp_c <- merge(sbtrpN_df, sbtrpS_df, by=c("x", "y", "sla"), all=TRUE) 
 # this works 
-sbtrp_c <- sbtrp_c %>% rename("cardamom" = sla)
   # plotting the two strips of latitude of subtropics
 (trial <- ggplot(sbtrpSTD_b, aes(x,y,color=butler_std))+
     geom_jitter(stat = "identity")+
@@ -679,21 +571,17 @@ sbtrp_std_S <- crop(cardamom_sla_std, sbtrpextS)
 sbtrpSTD_c_S <- raster::as.data.frame(sbtrp_std_S, xy=TRUE)
 sbtrpSTD_c <- merge(sbtrpSTD_c_N, sbtrpSTD_c_S, 
                     by=c("x","y","Standard_Deviation"), all = TRUE)
-sbtrpSTD_c <- sbtrpSTD_c %>%
-  rename("cardamom_std" = Standard_Deviation )
 
 # butler:
   # sla mean
 sbtrpN_b <- crop(butler_sla, sbtrpextN)  
-plot(sbtrpN_b[[1]])
+#plot(sbtrpN_b[[1]])
 sbtrpS_b <- crop(butler_sla, sbtrpextS)
-plot(sbtrpS_b[[1]])
+#plot(sbtrpS_b[[1]])
 sbtrp_bN_df <- raster::as.data.frame(sbtrpN_b, xy=TRUE)
 sbtrp_bS_df <- raster::as.data.frame(sbtrpS_b, xy =TRUE)
 sbtrp_b <- merge(sbtrp_bN_df, sbtrp_bS_df, by=c("x","y", "specific.leaf.area"),
                  all = TRUE)
-sbtrp_b <- sbtrp_b %>%
-  rename("butler"=specific.leaf.area)
 
   # sla std
 sbtrpSTD_b_N <- crop(butler_sla_std, sbtrpextN)
@@ -703,8 +591,6 @@ sbtrpSTD_b_S_df <- raster::as.data.frame(sbtrpSTD_b_S, xy =TRUE)
 sbtrpSTD_b <- merge(sbtrpSTD_b_N_df, sbtrpSTD_b_S_df, 
                     by = c("x","y","specific.leaf.area"),
                     all = TRUE)
-sbtrpSTD_b <- sbtrpSTD_b %>%
-  rename("butler_std"= specific.leaf.area)
 
 # subtropics joined cardamom + butler
 sbtrp_joined_SLA <- left_join(sbtrp_c, sbtrp_b)
@@ -718,17 +604,16 @@ tmpmatN <- matrix(data <- c(-180,180,35,66.5), nrow = 2, ncol = 2,
 tmpextN<- extent(tmpmatN)
 tmpmatS <- matrix(data <- c(-180, 180, -35,-66.5), nrow = 2, ncol = 2, 
                   byrow=TRUE)
-tmpextS <- extent(tmpmat2)
+tmpextS <- extent(tmpmatS)
 tmpN <- crop(cardamom_sla, tmpextN)
 tmpS <- crop(cardamom_sla, tmpextS)
-plot(tmpN[[1]])
-plot(tmpS[[1]])
+#plot(tmpN[[1]])
+#plot(tmpS[[1]])
 
 tmp_c_N_df <- raster::as.data.frame(tmpN, xy=TRUE)
 tmp_c_S_df <- raster::as.data.frame(tmpS, xy = TRUE)
 tmp_c_df <- merge(tmp_c_N_df, tmp_c_S_df, by = c("x","y","sla"), all = TRUE)
-tmp_c_df <- tmp_c_df %>% rename("cardamom"= sla)
-  
+
   # sla std 
 tmpSTD_c_N <- crop(cardamom_sla_std, tmpextN)
 tmpSTD_c_S <- crop(cardamom_sla_std, tmpextS)
@@ -737,8 +622,6 @@ tmpSTD_c_S_df <- raster::as.data.frame(tmpSTD_c_S, xy =TRUE)
 tmpSTD_c_df <- merge(tmpSTD_c_N_df, tmpSTD_c_S_df, 
                      by = c("x","y","Standard_Deviation"), 
                      all = TRUE)
-tmpSTD_c_df <- tmpSTD_c_df %>% rename("cardamom_std" = Standard_Deviation)
-
 # bulter 
   # sla mean 
 tmp_b_N <- crop(butler_sla, tmpextN)
@@ -747,8 +630,6 @@ tmp_b_N_df <- raster::as.data.frame(tmp_b_N, xy = TRUE)
 tmp_b_S_df <- raster::as.data.frame(tmp_b_S, xy = TRUE)
 tmp_b_df <- merge(tmp_b_N_df, tmp_b_S_df, by = c("x","y","specific.leaf.area"),
                   all = TRUE)
-tmp_b_df <- tmp_b_df %>%
-  rename("butler" = specific.leaf.area)
 
   # sla std 
 tmpSTD_b_N <- crop(butler_sla_std, tmpextN)
@@ -757,13 +638,11 @@ tmpSTD_b_N_df <- raster::as.data.frame(tmpSTD_b_N, xy = TRUE)
 tmpSTD_b_S_df <- raster::as.data.frame(tmpSTD_b_S, xy = TRUE)
 tmpSTD_b_df <- merge(tmpSTD_b_N_df, tmpSTD_b_S_df, 
                      by = c("x","y","specific.leaf.area"), all = TRUE)
-tmpSTD_b_df <- tmpSTD_b_df %>%
-  rename("butler_std" = specific.leaf.area)
 
 ## joining cardamom and butler for sla mean and stdev of temperate regions
 tmp_sla <- left_join(tmp_c_df,tmp_b_df)
 tmp_slastd <- left_join(tmpSTD_c_df, tmpSTD_b_df)
-
+  
   # poles ----
   # only data available in N hemisphere
 # cardamom
@@ -771,38 +650,230 @@ tmp_slastd <- left_join(tmpSTD_c_df, tmpSTD_b_df)
 plN <- matrix(data <- c(-180,66.5,180,90), nrow = 2, ncol=2)
 plextN <- extent(plN)
 plN_c <- crop(cardamom_sla, plextN)
-plot(plN_c[[1]])
+#plot(plN_c[[1]])
 plN_c_df <- raster::as.data.frame(plN_c, xy= TRUE)
-plN_c_df <- plN_c_df %>% rename("cardamom" = sla)
 
 # sla stdev
 plN_slastd_c <- crop(cardamom_sla_std, plextN)
-plot(plN_slastd_c[[1]])
+#plot(plN_slastd_c[[1]])
 plN_slastd_c_df <- raster::as.data.frame(plN_slastd_c, xy = TRUE)
-plN_slastd_c_df <- plN_slastd_c_df %>% 
-  rename("cardamom_std" = Standard_Deviation)
 
 # butler
 # sla mean
 plN_b <- crop(butler_sla, plextN)
-plot(plN_b[[1]])
+#plot(plN_b[[1]])
 plN_b_df <- raster::as.data.frame(plN_b, xy = TRUE)
-plN_b_df <- plN_b_df %>% rename("butler"=specific.leaf.area)
 
 # sla stdev
 plN_slastd_b <- crop(butler_sla_std, plextN)
-plot(plN_slastd_b[[1]])
+#plot(plN_slastd_b[[1]])
 plN_slastd_b_df <- raster::as.data.frame(plN_slastd_b, xy = TRUE)
-plN_slastd_b_df <- plN_slastd_b_df %>% 
-  rename("butler_std"= specific.leaf.area)
 
 # joining butler and cardamom for poles lat
 plN <- left_join(plN_c_df, plN_b_df)
 plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
 
+#### CREATING THE FUNCTIONS FOR OVERLAP PLOTS (modif from overlapping package) ####
+my.final.plot <- function (x, OV = NULL){
+  AREA <- NULL
+  for (i1 in 1:(length(x) - 1)) {
+    for (i2 in (i1 + 1):(length(x))) {
+      A <- data.frame(x = x[[i1]], group = names(x)[i1], 
+                      k = paste(names(x)[i1], names(x)[i2], sep = "-", 
+                                collapse = ""))
+      B <- data.frame(x = x[[i2]], group = names(x)[i2], 
+                      k = paste(names(x)[i1], names(x)[i2], sep = "-", 
+                                collapse = ""))
+      AREA <- rbind(AREA, rbind(A, B))
+    }
+  }
+  if (!is.null(OV)) {
+    OV <- data.frame(OV = OV, k = names(OV))
+    AREA <- merge(AREA, OV, by = "k")
+    AREA$k <- paste0(AREA$k, " (ov. perc. ", round(AREA$OV * 
+                                                     100), ")")
+  }
+  ggplot(AREA, aes(x = x)) + facet_wrap(~k) + 
+    geom_density(aes(fill = AREA$group), 
+                 alpha = 0.35) + xlab("") + 
+    theme(legend.title = element_blank())+
+    theme_classic()+
+    scale_color_brewer(palette = "Set1")+
+    scale_x_continuous(expand = c(0,0))+
+    scale_y_continuous(expand = c(0,0))
+}
+
+my.overlap <- function (x, nbins = 1024, plot = FALSE, partial.plot = FALSE, 
+                        boundaries = NULL, ...){
+  if (is.null(names(x))) 
+    names(x) <- paste("Y", 1:length(x), sep = "")
+  dd <- OV <- FUNC <- DD <- xpoints <- COMPTITLE <- NULL
+  for (j in 1:length(x)) {
+    if (!is.null(boundaries)) {
+      Lbound <- lapply(boundaries, FUN = length)
+      if ((Lbound$from == 1) & (Lbound$to == 1)) {
+        warning("Boundaries were set all equals")
+        boundaries$from <- rep(boundaries$from, length(x))
+        boundaries$to <- rep(boundaries$to, length(x))
+      }
+      else {
+        if ((Lbound$from != length(x)) | (Lbound$to != 
+                                          length(x))) {
+          stop("Boundaries not correctly defined")
+        }
+      }
+      from = boundaries$from[j]
+      to = boundaries$to[j]
+      dj <- density(x[[j]], n = nbins, from = from, to = to, 
+                    ...)
+    }
+    else {
+      dj <- density(x[[j]], n = nbins, ...)
+    }
+    ddd <- data.frame(x = dj$x, y = dj$y, j = names(x)[j])
+    FUNC <- c(FUNC, list(with(ddd, approxfun(x, y))))
+    dd <- rbind(dd, ddd)
+  }
+  for (i1 in 1:(length(x) - 1)) {
+    for (i2 in (i1 + 1):(length(x))) {
+      comptitle <- paste0(names(x)[i1], "-", names(x)[i2])
+      dd2 <- data.frame(x = dd$x, y1 = FUNC[[i1]](dd$x), 
+                        y2 = FUNC[[i2]](dd$x))
+      dd2[is.na(dd2)] <- 0
+      dd2$ovy <- apply(dd2[, c("y1", "y2")], 1, min)
+      dd2$ally <- apply(dd2[, c("y1", "y2")], 1, max, na.rm = TRUE)
+      dd2$dominance <- ifelse(dd2$y1 > dd2$y2, 1, 2)
+      dd2$k <- comptitle
+      OV <- c(OV, sum(dd2$ovy, na.rm = TRUE)/sum(dd2$ally, 
+                                                 na.rm = TRUE))
+      dd2 <- dd2[order(dd2$x), ]
+      CHANGE <- dd2$x[which(dd2$dominance[2:nrow(dd2)] != 
+                              dd2$dominance[1:(nrow(dd2) - 1)])]
+      xpoints <- c(xpoints, list(CHANGE))
+      if (partial.plot) {
+        gg <- ggplot(dd2, aes(x, dd2$y1)) + theme_bw() + 
+          geom_vline(xintercept = CHANGE, lty = 2, color = "#cccccc") + 
+          geom_line() + geom_line(aes(x, dd2$y2)) + geom_line(aes(x,dd2$ovy), 
+                                                              color = "red") + 
+          geom_line(aes(x,dd2$ally), color = "blue") + 
+          ggtitle(comptitle) + 
+          xlab("") + 
+          ylab("") + 
+          theme(plot.title = element_text(hjust = 0.5))
+        print(gg)
+      }
+      DD <- rbind(DD, dd2)
+      COMPTITLE <- c(COMPTITLE, comptitle)
+    }
+  }
+  names(xpoints) <- names(OV) <- COMPTITLE
+  if (plot) 
+    print(my.final.plot(x, OV))
+  return(list(DD = DD, OV = OV, xpoints = xpoints))
+}
 
 
-# (heatscatter) saving figure for sla mean by latitudinal range----
+#### PERCENTAGE OVERLAP DENSITY PLOTS ####
+  # sla mean ----
+lat.list <- list(trpSLA, sbtrp_joined_SLA, tmp_sla, plN)
+lat.list.n <- list()
+lat.density.plot <- list()
+for (i in 1:length(lat.list)){
+  lat.list[[i]] <- lat.list[[i]]%>%
+    filter(sla!=0,specific.leaf.area!=0) %>%
+    rename("cardamom" = sla, "butler" = specific.leaf.area) 
+  list <- list(cardamom=lat.list[[i]][["cardamom"]],
+               butler=lat.list[[i]][["butler"]])
+  name <- paste(i,"n",sep = "_")
+  lat.list.n[[name]] <- list
+  for (j in 1:length(lat.list.n)){
+    plot_name <- paste("./figures/lat",i,"density_overlap.png",sep = "_")
+    png(plot_name, width = 40, height = 20, units = "cm", res = 400)
+    lat.density.plot[[j]] <- my.overlap(lat.list.n[[j]], plot = TRUE)
+    dev.off()
+  }
+}
+
+  # sla stdev ----
+lat.std.list <- list(trpSTD,sbtrp_joined_STD,tmp_slastd,plN_std)
+lat.std.list.n <- list()
+lat.density.std.plot <- list()
+for (i in 1:length(lat.std.list)){
+  lat.std.list[[i]] <- lat.std.list[[i]]%>%
+    filter(Standard_Deviation!=0,specific.leaf.area!=0) %>%
+    rename("cardamom_std" = Standard_Deviation, 
+           "butler_std" = specific.leaf.area) 
+  list <- list(cardamom_std=lat.std.list[[i]][["cardamom_std"]],
+               butler_std=lat.std.list[[i]][["butler_std"]])
+  name <- paste(i,"n",sep = "_")
+  lat.std.list.n[[name]] <- list
+  for (j in 1:length(lat.std.list.n)){
+    plot_name <- paste("./figures/lat_std",i,"density_overlap.png",sep = "_")
+    png(plot_name, width = 40, height = 20, units = "cm", res = 400)
+    lat.density.std.plot[[j]] <- my.overlap(lat.std.list.n[[j]], plot = TRUE)
+    dev.off()
+  }
+}
+
+
+
+### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
+  # sla mean
+# 25th percentile 
+trp_25pc <- crop(cardamom_25th, trpext)
+trp_25pc <- raster::mask(trp_25pc, trp_b)
+# 75th percentile
+trp_75pc <- raster::mask(trp_25pc, boreal_f_taiga)
+# 95th percentile 
+trp_95pc <- raster::mask(trp_25pc, boreal_f_taiga)
+trp_stp <- (trp_b[[1]] >= trp_25pc[[1]])*
+  (trp_b[[1]]<=trp_75pc[[1]])
+trp_stp <- rasterToPoints(trp_stp)
+trp_stp <- trp_stp[trp_stp[, "layer"] == 1,]
+trp_stp_95 <- (trp_b[[1]]>=trp_25pc[[1]])*
+  (trp_b[[1]]<=trp_95pc[[1]])
+trp_stp_95 <- rasterToPoints(trp_stp_95)
+trp_stp_95 <- trp_stp_95[trp_stp_95[, "layer"] ==1,]
+trp_diff_stp <- as.data.frame(trp_stp_95) %>% 
+  setdiff(as.data.frame(trp_stp)) %>% 
+  as.matrix
+png("./figures/stippling_world.png", width = 40, height = 25, 
+    units = "cm", res = 500)
+plot(butler_sla, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
+     xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Butler Sla Mean (stippling)\n")
+points(stip_locs, pch = 18, cex=0.5)
+points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
+dev.off()
+
+# sla stdev 
+stip_locs_std <- (butler_sla_std[[1]] >= cardamom_25th[[1]])*
+  (butler_sla_std[[1]]<=cardamom_75th[[1]])
+stip_locs_std <- rasterToPoints(stip_locs_std)
+stip_locs_std <- stip_locs_std[stip_locs_std[, "layer"] == 1,]
+#(butler_stippling <- levelplot(butler_sla[[1]]))
+stip_locs_std_95 <- (butler_sla_std[[1]]>=cardamom_25th[[1]])*
+  (butler_sla_std[[1]]<=cardamom_95th[[1]])
+stip_locs_std_95 <- rasterToPoints(stip_locs_std_95)
+stip_locs_std_95 <- stip_locs_std_95[stip_locs_std_95[, "layer"] ==1,]
+diff_pc_std <- as.data.frame(stip_locs_std_95) %>% 
+  setdiff(as.data.frame(stip_locs_std)) %>% 
+  as.matrix # no difference - the points lay exclusively within 25-75pc here (for stdev)
+png("./figures/stippling_std_world.png", width = 40, height = 25, 
+    units = "cm", res = 500)
+plot(butler_sla_std, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
+     xlab="\nLongitude", ylab="Latitude", 
+     legend.args = list(text="\n\nSLA StDev (m2.kg-1)", 
+                        side=4, font=1, line=2.3),
+     main="Butler Sla StDev (stippling)\n")
+points(stip_locs_std, pch = 18, cex=0.5)
+dev.off()
+
+
+
+# HEATSCATTER: saving figure for sla mean by latitudinal range----
 png("./figures/heatsc_latitude_sla.png", width = 40, height = 30, 
     units = "cm", res = 500)
 par(mfcol = c(2,2))
@@ -902,6 +973,22 @@ trps_std_stat <- trpSTD %>%
 
 
 #### ANALYSIS SUBTROPICS ####
+# 25th percentile 
+sbtrpN_25pc <- crop(cardamom_25th, sbtrpextN)
+sbtrpS_25pc <- crop(cardamom_25th, sbtrpextS)
+sbtrpN_25pc <- raster::mask(sbtrpN_25pc, sbtrpN)
+# 75th percentile
+sbtrpN_75pc <- raster::mask(sbtrpN_25pc, sbtrpN)
+# 95th percentile 
+sbtrpN_95pc <- raster::mask(sbtrpN_25pc, sbtrpN)
+sbtrp_stp75pc <- (sbtrpN[[1]] >= sbtrpN_25pc[[1]])*
+  (sbtrpN[[1]]<=sbtrpN_75pc[[1]])
+sbtrp_stp75pc <- rasterToPoints(sbtrp_stp75pc)
+sbtrp_stp75pc <- sbtrp_stp75pc[sbtrp_stp75pc[, "layer"] == 1,]
+trp_stp_95 <- (trp_b[[1]]>=trp_25pc[[1]])*
+  (trp_b[[1]]<=trp_95pc[[1]])
+trp_stp_95 <- rasterToPoints(trp_stp_95)
+trp_stp_95 <- trp_stp_95[trp_stp_95[, "layer"] ==1,]
 # heatscatter subtrps ----
 # sla mean
 sbtrp_c_sla_n <- sbtrp_joined_SLA$cardamom
@@ -1160,8 +1247,6 @@ pl_std_stat <- plN_std %>%
 dev.off()
 
 
-#### OTHER ADDITIONAL STATS: T-TEST AND F-TEST? ####
-
 #############################
 #### SPLITTING BY BIOME #####
 #############################
@@ -1215,13 +1300,18 @@ trp_sbtrp_grass_sav_shr <- ecoregions17 %>%
 # sla mean
 masked_taiga_sla_c <- raster::mask(cardamom_sla, boreal_f_taiga)
 masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
-plot(masked_taiga_sla_c[[1]])
-plot(masked_taiga_sla_b[[1]])
+#plot(masked_taiga_sla_c[[1]])
+#plot(masked_taiga_sla_b[[1]])
 
-## stippling for taiga----
+# sla stdev 
+masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
+masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
+#plot(masked_taiga_slastd_c[[1]])
+#plot(masked_taiga_slastd_b[[1]])
+## stippling for taiga ----
 # 25th percentile 
 taiga_25pc <- raster::mask(cardamom_25th, boreal_f_taiga)
-plot(taiga_25pc[[1]])
+#plot(taiga_25pc[[1]])
 # 75th percentile
 taiga_75pc <- raster::mask(cardamom_75th, boreal_f_taiga)
 # 95th percentile 
@@ -1236,9 +1326,12 @@ stip_locs_taiga95 <- (masked_taiga_sla_b[[1]]>=taiga_25pc[[1]])*
   (masked_taiga_sla_b[[1]]<=taiga_95pc[[1]])
 stip_locs_taiga95 <- rasterToPoints(stip_locs_taiga95)
 stip_locs_taiga95 <- stip_locs_taiga95[stip_locs_taiga95[, "layer"] ==1,]
+
 diff_pc <- as.data.frame(stip_locs_taiga95) %>% 
   setdiff(as.data.frame(stip_locs_taiga)) %>% 
   as.matrix
+#taiga.m <- rasterToPoints(masked_taiga_sla_b)
+
 png("./figures/stippling_world.png", width = 40, height = 25, 
     units = "cm", res = 500)
 plot(masked_taiga_sla_b, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
@@ -1249,80 +1342,73 @@ plot(masked_taiga_sla_b, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
 points(stip_locs_taiga, pch = 18, cex=0.5)
 points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
 dev.off()
-
-# sla stdev 
-masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
-masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
-plot(masked_taiga_slastd_c[[1]])
-plot(masked_taiga_slastd_b[[1]])
-
 # 2) mask raster tundra biome ----
 # sla mean 
 masked_tundra_sla_c <- raster::mask(cardamom_sla, tundra)
 masked_tundra_sla_b <- raster::mask(butler_sla, tundra)
-plot(masked_tundra_sla_c[[1]])
-plot(masked_tundra_sla_b[[1]])
+#plot(masked_tundra_sla_c[[1]])
+#plot(masked_tundra_sla_b[[1]])
 
 # sla stdev 
 masked_tundra_slastd_c <- raster::mask(cardamom_sla_std, tundra)
 masked_tundra_slastd_b <- raster::mask(butler_sla_std, tundra)
-plot(masked_tundra_slastd_c[[1]])
-plot(masked_tundra_slastd_b[[1]])
+#plot(masked_tundra_slastd_c[[1]])
+#plot(masked_tundra_slastd_b[[1]])
 
 # 3) mask raster temp conif forest biome ----
 # sla mean 
 mask_temp_conif_sla_c <- raster::mask(cardamom_sla,temp_conif_forest)
 mask_temp_conif_sla_b <- raster::mask(butler_sla, temp_conif_forest)
-plot(mask_temp_conif_sla_c[[1]])
-plot(mask_temp_conif_sla_b[[1]])
+#plot(mask_temp_conif_sla_c[[1]])
+#plot(mask_temp_conif_sla_b[[1]])
 
 # sla stdev 
 mask_temp_conif_slastd_c <- raster::mask(cardamom_sla_std, temp_conif_forest)
 mask_temp_conif_slastd_b <- raster::mask(butler_sla_std, temp_conif_forest)
-plot(mask_temp_conif_slastd_c[[1]])
-plot(mask_temp_conif_slastd_b[[1]])
+#plot(mask_temp_conif_slastd_c[[1]])
+#plot(mask_temp_conif_slastd_b[[1]])
 
 # 4) mask raster temperate broad and mixed forest biome ----
 # sla mean
 mask_temp_broad_mix_sla_c <- raster::mask(cardamom_sla, temp_broad_mix)
 mask_temp_broad_mix_sla_b <- raster::mask(butler_sla, temp_broad_mix)
-plot(mask_temp_broad_mix_sla_c[[1]])
-plot(mask_temp_broad_mix_sla_b[[1]])
+#plot(mask_temp_broad_mix_sla_c[[1]])
+#plot(mask_temp_broad_mix_sla_b[[1]])
 
 # sla stdev 
 mask_temp_broad_mix_slastd_c <- raster::mask(cardamom_sla_std, temp_broad_mix)
 mask_temp_broad_mix_slastd_b <- raster::mask(butler_sla_std, temp_broad_mix)
-plot(mask_temp_broad_mix_slastd_c[[1]])
-plot(mask_temp_broad_mix_slastd_b[[1]])
+#plot(mask_temp_broad_mix_slastd_c[[1]])
+#plot(mask_temp_broad_mix_slastd_b[[1]])
 
 # 5) mask raster tropical and subtropical dry broadleaf biome ----
 # sla mean
 mask_trp_sbtrp_dry_broad_sla_c <- raster::mask(cardamom_sla, 
                                                trp_sbtrp_dry_broad)
 mask_trp_sbtrp_dry_broad_sla_b <-raster::mask(butler_sla, trp_sbtrp_dry_broad)
-plot(mask_trp_sbtrp_dry_broad_sla_c[[1]])
-plot(mask_trp_sbtrp_dry_broad_sla_b[[1]])
+#plot(mask_trp_sbtrp_dry_broad_sla_c[[1]])
+#plot(mask_trp_sbtrp_dry_broad_sla_b[[1]])
 
 # sla stdev 
 mask_trp_sbtrp_dry_broad_slastd_c <- raster::mask(cardamom_sla_std, 
                                                   trp_sbtrp_dry_broad)
 mask_trp_sbtrp_dry_broad_slastd_b <- raster::mask(butler_sla_std, 
                                                   trp_sbtrp_dry_broad)
-plot(mask_trp_sbtrp_dry_broad_slastd_c[[1]])
-plot(mask_trp_sbtrp_dry_broad_slastd_b[[1]])
+#plot(mask_trp_sbtrp_dry_broad_slastd_c[[1]])
+#plot(mask_trp_sbtrp_dry_broad_slastd_b[[1]])
 
 # 6) mask raster tropical and subtropical conif forest biome ----
 # sla mean 
 mask_trp_sbtrp_conif_sla_c <- raster::mask(cardamom_sla, trp_sbtrp_conif)
 mask_trp_sbtrp_conif_sla_b <- raster::mask(butler_sla, trp_sbtrp_conif)
-plot(mask_trp_sbtrp_conif_sla_c[[1]])
-plot(mask_trp_sbtrp_conif_sla_b[[1]])
+#plot(mask_trp_sbtrp_conif_sla_c[[1]])
+#plot(mask_trp_sbtrp_conif_sla_b[[1]])
 
 # sla stdev 
 mask_trp_sbtrp_conif_slastd_c <- raster::mask(cardamom_sla_std, trp_sbtrp_conif)
 mask_trp_sbtrp_conif_slastd_b <- raster::mask(butler_sla_std, trp_sbtrp_conif)
-plot(mask_trp_sbtrp_conif_slastd_c[[1]])
-plot(mask_trp_sbtrp_conif_slastd_b[[1]])
+#plot(mask_trp_sbtrp_conif_slastd_c[[1]])
+#plot(mask_trp_sbtrp_conif_slastd_b[[1]])
 
 # 7) mask raster tropical subtropical moist broadleaf biome ----
 # sla mean
@@ -1330,99 +1416,99 @@ mask_trp_sbtrp_moist_broad_sla_c <- raster::mask(cardamom_sla,
                                                  trp_sbtrp_moist_broad)
 mask_trp_sbtrp_moist_broad_sla_b <- raster::mask(butler_sla, 
                                                  trp_sbtrp_moist_broad)
-plot(mask_trp_sbtrp_moist_broad_sla_c[[1]])
-plot(mask_trp_sbtrp_moist_broad_sla_b[[1]])
+#plot(mask_trp_sbtrp_moist_broad_sla_c[[1]])
+#plot(mask_trp_sbtrp_moist_broad_sla_b[[1]])
 
 # sla stdev 
 mask_trp_sbtrp_moist_broad_slastd_c <- raster::mask(cardamom_sla_std, 
                                                     trp_sbtrp_moist_broad)
 mask_trp_sbtrp_moist_broad_slastd_b <- raster::mask(butler_sla_std, 
                                                     trp_sbtrp_moist_broad)
-plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
-plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
+#plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
+#plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
 
 ### these might be extras ###
 # 8) mask raster mediterranean forests, woodlands, scrub biome ----
 # sla mean
 mask_med_f_w_scr_sla_c <- raster::mask(cardamom_sla, med_f_w_scr)
 mask_med_f_w_scr_sla_b <- raster::mask(butler_sla, med_f_w_scr)
-plot(mask_med_f_w_scr_sla_c[[1]])
-plot(mask_med_f_w_scr_sla_b[[1]])
+#plot(mask_med_f_w_scr_sla_c[[1]])
+#plot(mask_med_f_w_scr_sla_b[[1]])
 
 # sla stdev 
 mask_med_f_w_scr_slastd_c <- raster::mask(cardamom_sla_std, med_f_w_scr)
 mask_med_f_w_scr_slastd_b <- raster::mask(butler_sla_std, med_f_w_scr)
-plot(mask_med_f_w_scr_slastd_c[[1]])
-plot(mask_med_f_w_scr_slastd_b[[1]])
+#plot(mask_med_f_w_scr_slastd_c[[1]])
+#plot(mask_med_f_w_scr_slastd_b[[1]])
 
 # 9) mask raster desertic and xeric scrubland biome ----
 # sla mean
 mask_des_x_scr_sla_c <- raster::mask(cardamom_sla, des_x_scr)
 mask_des_x_scr_sla_b <- raster:: mask(butler_sla, des_x_scr)
-plot(mask_des_x_scr_sla_c[[1]])
-plot(mask_des_x_scr_sla_b[[1]])
+#plot(mask_des_x_scr_sla_c[[1]])
+#plot(mask_des_x_scr_sla_b[[1]])
 
 # sla stdev 
 mask_des_x_scr_slastd_c <- raster::mask(cardamom_sla_std, des_x_scr)
 mask_des_x_scr_slastd_b <- raster::mask(butler_sla_std, des_x_scr)
-plot(mask_des_x_scr_slastd_c[[1]])
-plot(mask_des_x_scr_slastd_b[[1]])
+#plot(mask_des_x_scr_slastd_c[[1]])
+#plot(mask_des_x_scr_slastd_b[[1]])
 
 # 10) mask raster temperate grassland, savanna, shrubland biome ----
 # sla mean
 mask_temp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla,temp_grass_sav_shr)
 mask_temp_grass_sav_shr_sla_b <- raster::mask(butler_sla, temp_grass_sav_shr)
-plot(mask_temp_grass_sav_shr_sla_c[[1]])
-plot(mask_temp_grass_sav_shr_sla_b[[1]])
+#plot(mask_temp_grass_sav_shr_sla_c[[1]])
+#plot(mask_temp_grass_sav_shr_sla_b[[1]])
 
 # sla stdev
 mask_temp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std, 
                                                  temp_grass_sav_shr)
 mask_temp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std, 
                                                  temp_grass_sav_shr)
-plot(mask_temp_grass_sav_shr_slastd_c[[1]])
-plot(mask_temp_grass_sav_shr_slastd_b[[1]])
+#plot(mask_temp_grass_sav_shr_slastd_c[[1]])
+#plot(mask_temp_grass_sav_shr_slastd_b[[1]])
 
 # 11) mask raster montane grassland and shrubland biome ----
 # sla mean 
 mask_mont_grass_shr_sla_c <- raster::mask(cardamom_sla, mont_grass_shr)
 mask_mont_grass_shr_sla_b <- raster::mask(butler_sla, mont_grass_shr)
-plot(mask_mont_grass_shr_sla_c[[1]])
-plot(mask_mont_grass_shr_sla_b[[1]])
+#plot(mask_mont_grass_shr_sla_c[[1]])
+#plot(mask_mont_grass_shr_sla_b[[1]])
 
 # sla stdev 
 mask_mont_grass_shr_slastd_c <- raster::mask(cardamom_sla_std, 
                                              mont_grass_shr)
 mask_mont_grass_shr_slastd_b <- raster::mask(butler_sla_std, 
                                              mont_grass_shr)
-plot(mask_mont_grass_shr_slastd_c[[1]])
-plot(mask_mont_grass_shr_slastd_b[[1]])
+#plot(mask_mont_grass_shr_slastd_c[[1]])
+#plot(mask_mont_grass_shr_slastd_b[[1]])
 
 # 12) mask raster mangrove biome ----
 # sla mean
 mask_mangroves_sla_c <- raster::mask(cardamom_sla, mangroves)
 mask_mangroves_sla_b <- raster::mask(butler_sla, mangroves)
-plot(mask_mangroves_sla_c[[1]])
-plot(mask_mangroves_sla_b[[1]])
+#plot(mask_mangroves_sla_c[[1]])
+#plot(mask_mangroves_sla_b[[1]])
 
 # sla stdev 
 mask_mangroves_slastd_c <- raster::mask(cardamom_sla_std, mangroves)
 mask_mangroves_slastd_b <- raster::mask(butler_sla_std, mangroves)
-plot(mask_mangroves_slastd_c[[1]])
-plot(mask_mangroves_slastd_b[[1]])
+#plot(mask_mangroves_slastd_c[[1]])
+#plot(mask_mangroves_slastd_b[[1]])
 
 # 13) mask raster flooded grassland and savanna biome ----
 # sla mean
 mask_flo_grass_sav_sla_c <- raster::mask(cardamom_sla, flo_grass_sav)
 mask_flo_grass_sav_sla_b <- raster::mask(butler_sla, flo_grass_sav)
-plot(mask_flo_grass_sav_sla_c[[1]])
-plot(mask_flo_grass_sav_sla_b[[1]])
+#plot(mask_flo_grass_sav_sla_c[[1]])
+#plot(mask_flo_grass_sav_sla_b[[1]])
 
 # sla stdev 
 mask_flo_grass_sav_slastd_c <- raster::mask(cardamom_sla_std, flo_grass_sav)
 mask_flo_grass_sav_slastd_b <- raster::mask(butler_sla_std, flo_grass_sav)
-plot(mask_flo_grass_sav_slastd_c[[1]])
-plot(mask_flo_grass_sav_slastd_b[[1]])
+#plot(mask_flo_grass_sav_slastd_c[[1]])
+#plot(mask_flo_grass_sav_slastd_b[[1]])
 
 # 14) mask raster tropical and subtropical grassland, savanna, shrubland biome ----
 # sla mean 
@@ -1430,16 +1516,18 @@ mask_trp_sbtrp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla,
                                                    trp_sbtrp_grass_sav_shr)
 mask_trp_sbtrp_grass_sav_shr_sla_b <- raster::mask(butler_sla, 
                                                    trp_sbtrp_grass_sav_shr)
-plot(mask_trp_sbtrp_grass_sav_shr_sla_c[[1]])
-plot(mask_trp_sbtrp_grass_sav_shr_sla_b[[1]])
+#plot(mask_trp_sbtrp_grass_sav_shr_sla_c[[1]])
+#plot(mask_trp_sbtrp_grass_sav_shr_sla_b[[1]])
 
 # sla stdev 
 mask_trp_sbtrp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std,
                                                       trp_sbtrp_grass_sav_shr)
 mask_trp_sbtrp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
                                                       trp_sbtrp_grass_sav_shr)
-plot(mask_trp_sbtrp_grass_sav_shr_slastd_c[[1]])
-plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
+#plot(mask_trp_sbtrp_grass_sav_shr_slastd_c[[1]])
+#plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
+
+
 
 
 
@@ -1595,10 +1683,8 @@ j_flo_g_sav_sla <- left_join(flo_grass_sav_sla_c, flo_grass_sav_sla_b)
   # joined flooded grass and savanna
 j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c,
                                   trpsbtrp_grass_sav_shr_sla_b) 
-
 ## --- ##
-
-  # sla stdev----
+  # sla stdev
 j_taiga_slastd <- left_join(taiga_slastd_c, taiga_slastd_b)
 j_tundra_slastd <- left_join(tundra_slastd_c, tundra_slastd_b)
 j_tmp_c_slastd <- left_join(tmp_conif_slastd_c, tmp_conif_slastd_b)
@@ -1624,28 +1710,34 @@ j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
                                          trpsbtrp_grass_sav_shr_slastd_b)
 
 
-  
 
-#### percentage overlap density plots ####
-# let's try with a loop
-# creating a list that joins all different datasets together - we can start with 8
-biome.list <- list(j_taiga_sla, j_tundra_sla, j_tmp_c_sla,
-                   j_tmp_b_m_sla, j_trp_sbtrp_d_b_sla,
-                   j_trp_sbtrp_c_sla, j_trp_sbtrp_m_br_sla,
-                   j_med_f_sla)
+#### PERCENTAGE OVERLAP DENSITY PLOTS ####
+  # sla mean ----
+biome.list <- list(taiga_sla=j_taiga_sla, 
+                   tundra_sla=j_tundra_sla, tmp_c_sla=j_tmp_c_sla,
+                   tmp_b_m_sla=j_tmp_b_m_sla, 
+                   trp_sbtrp_d_b_sla=j_trp_sbtrp_d_b_sla,
+                   trp_sbtrp_c_sla=j_trp_sbtrp_c_sla, 
+                   trp_sbtrp_m_br_sla=j_trp_sbtrp_m_br_sla,
+                   med_f_sla=j_med_f_sla, des_x_s_sla=j_des_x_s_sla, 
+                   temp_g_s_sh_sla=j_temp_g_s_sh_sla,
+                   mont_g_shr_sla=j_mont_g_shr_sla,
+                   mangr_sla=j_mangr_sla, flo_g_sav_sla=j_flo_g_sav_sla,
+                   trpsbtrp_g_sav_shr_sla=j_trpsbtrp_g_sav_shr_sla)
 biome.list.n <- list()
 density.plot <- list()
+
 for (i in 1:length(biome.list)){
   biome.list[[i]] <- biome.list[[i]]%>%
     filter(sla!=0,specific.leaf.area!=0) %>%
     rename("cardamom" = sla, "butler" = specific.leaf.area) 
   list <- list(cardamom=biome.list[[i]][["cardamom"]],
                butler=biome.list[[i]][["butler"]])
-  name <- paste(i,"n",sep = "_")
+  name <- paste(names(biome.list)[i],"n",sep = "_")
   biome.list.n[[name]] <- list
   for (j in 1:length(biome.list.n)){
-   # density.plot.name <- paste("biome",j,"density_plot", sep = "_")
-    plot_name <- paste("./figures/biome",i,"density_overlap.png",sep = "_")
+    plot_name <- paste("./figures/biome",names(biome.list)[i], # this is the way to do it
+                       "density_overlap.png",sep = "_")
     png(plot_name, width = 40, height = 20, units = "cm", res = 400)
     density.plot[[j]] <- my.overlap(biome.list.n[[j]], plot = TRUE)
    # print(density.plot[[j]])
@@ -1653,1297 +1745,105 @@ for (i in 1:length(biome.list)){
   }
 }
 
-  
-# DIFFERENCE HISTOGRAMS ----
-## major biomes of interest ##
-# 1) taiga ----
-      # sla mean----
-j_taiga_sla_h <- j_taiga_sla %>%
-  gather(key = "dataset",value="sla", -x,-y)
-  # - histogram for cardamom and butler in taiga biome
-(taiga_sla_hist <- ggplot(j_taiga_sla_h, aes(x=sla,group=dataset,
-                                                  fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (Taiga)", 
-                        labels=c("Cardamom", "Butler")))
-
-taiga_sla_hist_data <- as.data.table(ggplot_build(taiga_sla_hist)$data[1])
-taiga_sla_hist_data <- taiga_sla_hist_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
-taiga_sla_hist_data_c <- taiga_sla_hist_data[group==1]
-taiga_sla_hist_data_b <- taiga_sla_hist_data[group==2]
-taiga_sla_hist_diff <- merge(taiga_sla_hist_data_c, taiga_sla_hist_data_b, 
-                             by=c("xmin","xmax"), 
-                          suffixes = c(".c",".b"), allow.cartesian=TRUE)
-taiga_sla_hist_diff <- taiga_sla_hist_diff[,Difference:=count.c-count.b]
-setnames(taiga_sla_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                "Butler"))
-taiga_sla_hist_diff_melt <- melt(taiga_sla_hist_diff, id.vars = c("xmin","xmax"), 
-                         measure.vars = c("Cardamom","Difference","Butler"))
-
-      # sla stdev ----
-j_taiga_slastd_h <- j_taiga_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-# - histogram for cardamom and butler in taiga biome
-(taiga_slastd_hist <- ggplot(j_taiga_slastd_h, aes(x=sla_std,group=dataset,
-                                             fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (Taiga)"))
-
-taiga_slastd_hist_data <- as.data.table(ggplot_build(taiga_slastd_hist)$data[1])
-taiga_slastd_hist_data <- taiga_slastd_hist_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-# atm for some reason, error "unused groups (count,xmin,xmax,group)" dont know why
-taiga_slastd_hist_data_c <- taiga_slastd_hist_data[group==2]
-taiga_slastd_hist_data_b <- taiga_slastd_hist_data[group==1]
-taiga_slastd_hist_diff <- merge(taiga_slastd_hist_data_c, 
-                                taiga_slastd_hist_data_b, 
-                             by=c("xmin","xmax"), 
-                             suffixes = c(".c",".b"), allow.cartesian=TRUE)
-taiga_slastd_hist_diff <- taiga_slastd_hist_diff[,Difference:=count.c-count.b]
-setnames(taiga_slastd_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                   "Butler"))
-taiga_slastd_hist_diff_melt <- melt(taiga_slastd_hist_diff, 
-                                    id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference",
-                                                  "Butler"))
-
-(taiga_slastd_hist_diff_plot <- ggplot(taiga_slastd_hist_diff_melt, 
-                                    aes(xmin=xmin, xmax=xmax,
-                                        ymax=value,ymin=0,
-                                        group=variable,
-                                        fill=variable, 
-                                        color=variable,
-                                        alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Taiga\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500))  
-
-# 2) tundra ---- 
-     # sla mean ----
-j_tundra_sla_hist <- j_tundra_sla %>%
-  gather(dataset, sla, -x,-y)
-(tundra_sla_hist <- ggplot(j_tundra_sla_hist, aes(x=sla,group=dataset,
-                                             fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (Taiga)", 
-                        labels=c("Cardamom", "Butler")))
-tundra_sla_hist_data <- as.data.table(ggplot_build(tundra_sla_hist)$data[1])
-tundra_sla_hist_data <- tundra_sla_hist_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-tundra_sla_hist_data_c <- tundra_sla_hist_data[group==1]
-tundra_sla_hist_data_b <- tundra_sla_hist_data[group==2]
-tundra_sla_hist_diff <- merge(tundra_sla_hist_data_c, tundra_sla_hist_data_b, 
-                             by=c("xmin","xmax"), 
-                             suffixes = c(".c",".b"), allow.cartesian=TRUE)
-tundra_sla_hist_diff <- tundra_sla_hist_diff[,Difference:=count.c-count.b]
-setnames(tundra_sla_hist_diff, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                   "Butler"))
-tundra_sla_hist_diff_melt <- melt(tundra_sla_hist_diff, id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference","Butler"))
-
-(tundra_sla_hist_diff_plot <- ggplot(tundra_sla_hist_diff_melt, 
-                                    aes(xmin=xmin, xmax=xmax,
-                                        ymax=value,ymin=0,
-                                        group=variable,
-                                        fill=variable, 
-                                        color=variable,
-                                        alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
-  #  ylab("Count\n")+
-    ggtitle("Tundra\n")+
-    xlim(0, 65)+
-    ylim(-150,400))  
-
-     # sla stdev ----
-tundra_slastd_h <- j_tundra_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(tundra_slastd_h_plot <- ggplot(tundra_slastd_h, aes(x=sla_std,group=dataset,
-                                                   fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (Tundra)"))
-tundra_slastd_h_data <- as.data.table(ggplot_build(tundra_slastd_h_plot)$data[1])
-tundra_slastd_h_data <- tundra_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-tundra_slastd_h_data_c <- tundra_slastd_h_data[group==2]
-tundra_slastd_h_data_b <- tundra_slastd_h_data[group==1]
-tundra_slastd_h_diff <- merge(tundra_slastd_h_data_c, 
-                              tundra_slastd_h_data_b, 
-                                by=c("xmin","xmax"), 
-                                suffixes = c(".c",".b"), allow.cartesian=TRUE)
-tundra_slastd_h_diff <- tundra_slastd_h_diff[,Difference:=count.c-count.b]
-setnames(tundra_slastd_h_diff, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                      "Butler"))
-tundra_slastd_h_melt <- melt(tundra_slastd_h_diff, 
-                                    id.vars = c("xmin","xmax"), 
-                                    measure.vars = c("Cardamom","Difference",
-                                                     "Butler"))
-
-(tundra_slastd_h_diff <- ggplot(tundra_slastd_h_melt, 
-                                       aes(xmin=xmin, xmax=xmax,
-                                           ymax=value,ymin=0,
-                                           group=variable,
-                                           fill=variable, 
-                                           color=variable,
-                                           alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
-    ggtitle("Tundra\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
-
-# 3) temp conif forest biome ----
-      # sla mean ---- 
-temp_con_sla_hist <- j_tmp_c_sla %>%
-  gather(dataset, sla, -x,-y)
-(temp_con_sla_hist_plot <- ggplot(temp_con_sla_hist, aes(x=sla,group=dataset,
-                                                  fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (Temperate Coniferous)"))
-temp_con_sla_hist_data <- as.data.table(ggplot_build(temp_con_sla_hist_plot)$data[1])
-temp_con_sla_hist_data <- temp_con_sla_hist_data %>%
-  dplyr::select(count, xmin, xmax, group)
-temp_con_sla_hist_data_c <- temp_con_sla_hist_data[group==1]
-temp_con_sla_hist_data_b <- temp_con_sla_hist_data[group==2]
-temp_con_sla_hist_merge <- merge(temp_con_sla_hist_data_c,
-                                 temp_con_sla_hist_data_b, 
-                              by=c("xmin","xmax"), 
-                              suffixes = c(".c",".b"), allow.cartesian=TRUE)
-temp_con_sla_hist_merge <- temp_con_sla_hist_merge[,Difference:=count.c-count.b]
-setnames(temp_con_sla_hist_merge, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                    "Butler"))
-temp_con_sla_hist_merge <- melt(temp_con_sla_hist_merge, 
-                                id.vars = c("xmin","xmax"), 
-                                  measure.vars = c("Cardamom",
-                                                   "Difference","Butler"))
-
-(temp_con_sla_hist_diff_plot <- ggplot(temp_con_sla_hist_merge, 
-                                     aes(xmin=xmin, xmax=xmax,
-                                         ymax=value,ymin=0,
-                                         group=variable,
-                                         fill=variable, 
-                                         color=variable,
-                                         alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Temperate coniferous forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 33)+
-    ylim(-15,25))  
-
-      # sla stdev ----
-temp_c_slastd_h <- j_temp_g_s_sh_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(temp_c_slastd_h_plot <- ggplot(temp_c_slastd_h, aes(x=sla_std,group=dataset,
-                                                     fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-temp_c_slastd_h_data <- as.data.table(ggplot_build(temp_c_slastd_h_plot)$data[1])
-temp_c_slastd_h_data <- temp_c_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-temp_c_slastd_h_data_c <- temp_c_slastd_h_data[group==2]
-temp_c_slastd_h_data_b <- temp_c_slastd_h_data[group==1]
-temp_c_slastd_h_diff <- merge(temp_c_slastd_h_data_c, 
-                              temp_c_slastd_h_data_b, 
-                              by=c("xmin","xmax"), 
-                              suffixes = c(".c",".b"), allow.cartesian=TRUE)
-temp_c_slastd_h_diff <- temp_c_slastd_h_diff[,Difference:=count.c-count.b]
-setnames(temp_c_slastd_h_diff, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                    "Butler"))
-temp_c_slastd_h_melt <- melt(temp_c_slastd_h_diff, 
-                             id.vars = c("xmin","xmax"), 
-                             measure.vars = c("Cardamom","Difference",
-                                              "Butler"))
-
-(temp_c_slastd_h_diff <- ggplot(temp_c_slastd_h_melt, 
-                                aes(xmin=xmin, xmax=xmax,
-                                    ymax=value,ymin=0,
-                                    group=variable,
-                                    fill=variable, 
-                                    color=variable,
-                                    alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Temperate coniferous forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
-
-# 4) temp broad mix forest biome ----
-      # sla mean ----
-tmp_b_m_sla_h <- j_tmp_b_m_sla %>%
-  gather(dataset, sla, -x, -y)
-(tmp_b_m_sla_h_plot <- ggplot(tmp_b_m_sla_h, aes(x=sla,
-                                                     group=dataset,
-                                                     fill=dataset))+
-                            geom_histogram(bins = 100, alpha=0.4)+
-                            theme_ipsum()+
-                            scale_fill_discrete(name="SLA Mean (temp broad/mix)", 
-                                                labels=c("Cardamom", "Butler")))
-tmp_b_m_sla_h_data <- as.data.table(ggplot_build(tmp_b_m_sla_h_plot)$data[1])
-tmp_b_m_sla_h_data <- dplyr::select(tmp_b_m_sla_h_data, 
-                               count, xmin, xmax, ymin, ymax, group)
-tmp_b_m_sla_h_data_c <- tmp_b_m_sla_h_data[group==1]
-tmp_b_m_sla_h_data_b <- tmp_b_m_sla_h_data[group==2]
-tmp_b_m_sla_h_merge <- merge(tmp_b_m_sla_h_data_c,
-                             tmp_b_m_sla_h_data_b, 
-                                by=c("xmin","xmax"), 
-                                suffixes = c(".c",".b"), allow.cartesian=TRUE)
-tmp_b_m_sla_h_merge <- tmp_b_m_sla_h_merge[,Difference:=count.c-count.b]
-setnames(tmp_b_m_sla_h_merge, old = c("count.c","count.b"),new = c("Cardamom",
-                                                                      "Butler"))
-tmp_b_m_sla_h_merge <- melt(tmp_b_m_sla_h_merge, 
-                                    id.vars = c("xmin","xmax"), 
-                                    measure.vars = c("Cardamom","Difference",
-                                                     "Butler"))
-
-(tmp_b_m_sla_h_diff <- ggplot(tmp_b_m_sla_h_merge, 
-                                       aes(xmin=xmin, xmax=xmax,
-                                           ymax=value,ymin=0,
-                                           group=variable,
-                                           fill=variable, 
-                                           color=variable,
-                                           alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Temperate broadleaf/mixed forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 65)+
-    ylim(-150,400))  
-    
-      # sla stdev ----
-temp_broad_mix_slastd_h <- j_tmp_b_m_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(temp_broad_mix_slastd_h_plot <- ggplot(temp_broad_mix_slastd_h, 
-                                        aes(x=sla_std,group=dataset,
-                                                     fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-temp_broad_mix_slastd_h_data <- as.data.table(ggplot_build(temp_broad_mix_slastd_h_plot)$data[1])
-temp_broad_mix_slastd_h_data <- temp_broad_mix_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-temp_broad_mix_slastd_h_data_c <- temp_broad_mix_slastd_h_data[group==2]
-temp_broad_mix_slastd_h_data_b <- temp_broad_mix_slastd_h_data[group==1]
-temp_broad_mix_slastd_h_merge <- merge(temp_broad_mix_slastd_h_data_c, 
-                                       temp_broad_mix_slastd_h_data_b, 
-                              by=c("xmin","xmax"), 
-                              suffixes = c(".c",".b"), allow.cartesian=TRUE)
-temp_broad_mix_slastd_h_merge <- temp_broad_mix_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(temp_broad_mix_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-temp_broad_mix_slastd_h_merge <- melt(temp_broad_mix_slastd_h_merge, 
-                             id.vars = c("xmin","xmax"), 
-                             measure.vars = c("Cardamom","Difference",
-                                              "Butler"))
-(temp_broad_mix_slastd_h_diff <- ggplot(temp_broad_mix_slastd_h_merge, 
-                                aes(xmin=xmin, xmax=xmax,
-                                    ymax=value,ymin=0,
-                                    group=variable,
-                                    fill=variable, 
-                                    color=variable,
-                                    alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Temperate broadleaf/mixed forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
-
-# 5) tropical and subtropical dry broadleaf biome ----
-      # sla mean ----
-trpsbtrp_d_broad_h <- j_trp_sbtrp_d_b_sla %>%
-  gather(dataset, sla, -x, -y)
-(trpsbtrp_d_broad_h_plot <- ggplot(trpsbtrp_d_broad_h, 
-                                   aes(sla, group = dataset, 
-                                       fill = dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (tropical and subtropical dry broadleaf)",
-                        labels=c("Cardamom", "Butler")))
-trpsbtrp_d_broad_h_data <- as.data.table(ggplot_build(trpsbtrp_d_broad_h_plot)$data[1])
-trpsbtrp_d_broad_h_data <- dplyr::select(trpsbtrp_d_broad_h_data,
-                                         count, xmin, xmax, ymin, ymax, group)
-trpsbtrp_d_broad_h_data_c <- trpsbtrp_d_broad_h_data[group == 1]
-trpsbtrp_d_broad_h_data_b <- trpsbtrp_d_broad_h_data[group == 2]
-trpsbtrp_d_broad_h_merge <- merge(trpsbtrp_d_broad_h_data_c,
-                                  trpsbtrp_d_broad_h_data_b, 
-                             by=c("xmin","xmax"), 
-                             suffixes = c(".c",".b"), allow.cartesian=TRUE)
-trpsbtrp_d_broad_h_merge <- trpsbtrp_d_broad_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_d_broad_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-trpsbtrp_d_broad_h_merge <- melt(trpsbtrp_d_broad_h_merge, 
-                            id.vars = c("xmin","xmax"), 
-                            measure.vars = c("Cardamom","Difference",
-                                             "Butler"))
-(trpsbtrp_d_broad_h_diff <- ggplot(trpsbtrp_d_broad_h_merge, 
-                              aes(xmin=xmin, xmax=xmax,
-                                  ymax=value,ymin=0,
-                                  group=variable,
-                                  fill=variable, 
-                                  color=variable,
-                                  alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-   # xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Tropical and subtropical dry broadleaf forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 33)+
-    ylim(-15,25))  
-
-      # sla stdev ----
-trpsbtrp_dry_broad_slastd_h <- j_trp_sbtrp_d_b_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(trpsbtrp_dry_broad_slastd_h_plot <- ggplot(trpsbtrp_dry_broad_slastd_h, 
-                                        aes(x=sla_std,group=dataset,
-                                            fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-trpsbtrp_dry_broad_slastd_h_data <- as.data.table(ggplot_build(trpsbtrp_dry_broad_slastd_h_plot)$data[1])
-trpsbtrp_dry_broad_slastd_h_data <- trpsbtrp_dry_broad_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-trpsbtrp_dry_broad_slastd_h_data_c <- trpsbtrp_dry_broad_slastd_h_data[group==2]
-trpsbtrp_dry_broad_slastd_h_data_b <- trpsbtrp_dry_broad_slastd_h_data[group==1]
-trpsbtrp_dry_broad_slastd_h_merge <- merge(trpsbtrp_dry_broad_slastd_h_data_c, 
-                                           trpsbtrp_dry_broad_slastd_h_data_b, 
-                                       by=c("xmin","xmax"), 
-                                       suffixes = c(".c",".b"), allow.cartesian=TRUE)
-trpsbtrp_dry_broad_slastd_h_merge <- trpsbtrp_dry_broad_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_dry_broad_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-trpsbtrp_dry_broad_slastd_h_merge <- melt(trpsbtrp_dry_broad_slastd_h_merge, 
-                                      id.vars = c("xmin","xmax"), 
-                                      measure.vars = c("Cardamom","Difference",
-                                                       "Butler"))
-(trpsbtrp_dry_broad_slastd_h_diff <- ggplot(trpsbtrp_dry_broad_slastd_h_merge, 
-                                        aes(xmin=xmin, xmax=xmax,
-                                            ymax=value,ymin=0,
-                                            group=variable,
-                                            fill=variable, 
-                                            color=variable,
-                                            alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Tropical and subtropical dry broadleaf forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,65)+
-    ylim(-50,50)) 
-
-# 6) tropical and subtropical conif forest biome ----
-      # sla mean ----
-trpsbtrp_conif_h <- j_trp_sbtrp_c_sla %>%
-  gather(dataset, sla, -x, -y)
-(trpsbtrp_conif_h_plot <- ggplot(trpsbtrp_conif_h, aes(sla, 
-                                                       group = dataset,
-                                                       fill = dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (tropical and subtropical coniferous biome)",
-                        labels=c("Cardamom", "Butler")))
-trpsbtrp_conif_h_data <- as.data.table(ggplot_build(trpsbtrp_conif_h_plot)$data[1])
-trpsbtrp_conif_h_data <- dplyr::select(trpsbtrp_conif_h_data,
-                                       count, xmin,xmax,ymin,ymax,group)
-trpsbtrp_conif_h_data_c <- trpsbtrp_conif_h_data[group == 1]
-trpsbtrp_conif_h_data_b <- trpsbtrp_conif_h_data[group == 2]
-trpsbtrp_conif_h_data_merge <- merge(trpsbtrp_conif_h_data_c,
-                                     trpsbtrp_conif_h_data_b, 
-                                  by=c("xmin","xmax"), 
-                                  suffixes = c(".c",".b"), 
-                                  allow.cartesian=TRUE)
-trpsbtrp_conif_h_data_merge <- trpsbtrp_conif_h_data_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_conif_h_data_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-trpsbtrp_conif_h_data_merge <- melt(trpsbtrp_conif_h_data_merge, 
-                                 id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference",
-                                                  "Butler"))
-(trpsbtrp_conif_h_diff <- ggplot(trpsbtrp_conif_h_data_merge, 
-                                   aes(xmin=xmin, xmax=xmax,
-                                       ymax=value,ymin=0,
-                                       group=variable,
-                                       fill=variable, 
-                                       color=variable,
-                                       alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Tropical and subtropical coniferous forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 33)+
-    ylim(-15,25))  
-
-      # sla stdev ----
-trpsbtrp_conif_slastd_h <- j_trp_sbtrp_c_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(trpsbtrp_conif_slastd_h_plot <- ggplot(trpsbtrp_conif_slastd_h, 
-                                            aes(x=sla_std,group=dataset,
-                                                fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-trpsbtrp_conif_slastd_h_data <- as.data.table(ggplot_build(trpsbtrp_conif_slastd_h_plot)$data[1])
-trpsbtrp_conif_slastd_h_data <- trpsbtrp_conif_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-trpsbtrp_conif_slastd_h_data_c <- trpsbtrp_conif_slastd_h_data[group==2]
-trpsbtrp_conif_slastd_h_data_b <- trpsbtrp_conif_slastd_h_data[group==1]
-trpsbtrp_conif_slastd_h_merge <- merge(trpsbtrp_conif_slastd_h_data_c, 
-                                       trpsbtrp_conif_slastd_h_data_b, 
-                                           by=c("xmin","xmax"), 
-                                           suffixes = c(".c",".b"), allow.cartesian=TRUE)
-trpsbtrp_conif_slastd_h_merge <- trpsbtrp_conif_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_conif_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-trpsbtrp_conif_slastd_h_merge <- melt(trpsbtrp_conif_slastd_h_merge, 
-                                          id.vars = c("xmin","xmax"), 
-                                          measure.vars = c("Cardamom","Difference",
-                                                           "Butler"))
-(trpsbtrp_conif_slastd_h_diff <- ggplot(trpsbtrp_conif_slastd_h_merge, 
-                                            aes(xmin=xmin, xmax=xmax,
-                                                ymax=value,ymin=0,
-                                                group=variable,
-                                                fill=variable, 
-                                                color=variable,
-                                                alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
-    ggtitle("Tropical and subtropical coniferous forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,65)+
-    ylim(-50,50)) 
-# 7) tropical subtropical moist broadleaf biome ----
-      # sla mean ----
-trpsbtrp_m_broad_h <- j_trp_sbtrp_m_br_sla %>%
-  gather(dataset, sla, -x, -y )
-(trpsbtrp_m_broad_h_plot <- ggplot(trpsbtrp_m_broad_h, aes(sla, 
-                                                           group = dataset,
-                                                           fill = dataset))+
-    geom_histogram(bins = 50, alpha=0.4)+
-    theme_ipsum()+
-    scale_fill_discrete(name="SLA Mean (tropical and subtropical moist broadleaf forest biome)",
-                        labels=c("Cardamom", "Butler")))
-trpsbtrp_m_broad_h_data <- as.data.table(ggplot_build(trpsbtrp_m_broad_h_plot)$data[1])
-trpsbtrp_m_broad_h_data_c <- trpsbtrp_m_broad_h_data[group==1]
-trpsbtrp_m_broad_h_data_b <- trpsbtrp_m_broad_h_data[group==2]
-trpsbtrp_m_broad_h_merge <- merge(trpsbtrp_m_broad_h_data_c,
-                                  trpsbtrp_m_broad_h_data_b, 
-                                  by=c("xmin","xmax"), 
-                                  suffixes = c(".c",".b"), 
-                                  allow.cartesian=TRUE)
-trpsbtrp_m_broad_h_merge <- trpsbtrp_m_broad_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_m_broad_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-trpsbtrp_m_broad_h_merge <- melt(trpsbtrp_m_broad_h_merge, 
-                                    id.vars = c("xmin","xmax"), 
-                                    measure.vars = c("Cardamom","Difference",
-                                                     "Butler"))
-(trpsbtrp_m_broad_h_diff <- ggplot(trpsbtrp_m_broad_h_merge, 
-                                 aes(xmin=xmin, xmax=xmax,
-                                     ymax=value,ymin=0,
-                                     group=variable,
-                                     fill=variable, 
-                                     color=variable,
-                                     alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Tropical and subtropical moist broadleaf forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0, 65)+
-    ylim(-150,400))  
-
-      # sla stdev ----
-trpsbtrp_m_broad_slastd_h <- j_trp_sbtrp_m_br_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(trpsbtrp_m_broad_slastd_h_plot <- ggplot(trpsbtrp_m_broad_slastd_h, 
-                                        aes(x=sla_std,group=dataset,
-                                            fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-trpsbtrp_m_broad_slastd_h_data <- as.data.table(ggplot_build(trpsbtrp_m_broad_slastd_h_plot)$data[1])
-trpsbtrp_m_broad_slastd_h_data <- trpsbtrp_m_broad_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-trpsbtrp_m_broad_slastd_h_data_c <- trpsbtrp_m_broad_slastd_h_data[group==2]
-trpsbtrp_m_broad_slastd_h_data_b <- trpsbtrp_m_broad_slastd_h_data[group==1]
-trpsbtrp_m_broad_slastd_h_merge <- merge(trpsbtrp_m_broad_slastd_h_data_c, 
-                                         trpsbtrp_m_broad_slastd_h_data_b, 
-                                       by=c("xmin","xmax"), 
-                                       suffixes = c(".c",".b"), allow.cartesian=TRUE)
-trpsbtrp_m_broad_slastd_h_merge <- trpsbtrp_m_broad_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_m_broad_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-trpsbtrp_m_broad_slastd_h_merge <- melt(trpsbtrp_m_broad_slastd_h_merge, 
-                                      id.vars = c("xmin","xmax"), 
-                                      measure.vars = c("Cardamom","Difference",
-                                                       "Butler"))
-(trpsbtrp_m_broad_slastd_h_diff <- ggplot(trpsbtrp_m_broad_slastd_h_merge, 
-                                        aes(xmin=xmin, xmax=xmax,
-                                            ymax=value,ymin=0,
-                                            group=variable,
-                                            fill=variable, 
-                                            color=variable,
-                                            alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-   # ylab("Count\n")+
-    ggtitle("Tropical and subtropical moist broadleaf forest\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,75)+
-    ylim(-500,500)) 
-
-# 8) mediterranean forests, woodlands, scrub ----
-      # sla mean ----
-med_f_w_scr_h <- j_med_f_sla %>%
-  gather(dataset, sla, -x, -y)
-(med_f_w_scr_h_plot <- ggplot(med_f_w_scr_h, aes(sla, group = dataset, 
-                                                 fill = dataset))+
-    geom_histogram(bins = 100, alpha = 0.4)+
-    theme_ipsum())
-med_f_w_scr_h_plot_data <- as.data.table(ggplot_build(med_f_w_scr_h_plot)$data[1])
-med_f_w_scr_h_plot_data <- dplyr::select(med_f_w_scr_h_plot_data, 
-                                         count, xmin, xmax, ymin, ymax, group)
-med_f_w_scr_h_plot_data_c <- med_f_w_scr_h_plot_data[group == 1]
-med_f_w_scr_h_plot_data_b <- med_f_w_scr_h_plot_data[group == 2]
-med_f_w_scr_h_plot_merge <- merge(med_f_w_scr_h_plot_data_c,
-                                  med_f_w_scr_h_plot_data_b, 
-                                  by=c("xmin","xmax"), 
-                                  suffixes = c(".c",".b"), 
-                                  allow.cartesian=TRUE)
-med_f_w_scr_h_plot_merge <- med_f_w_scr_h_plot_merge[,Difference:=count.c-count.b]
-setnames(med_f_w_scr_h_plot_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-med_f_w_scr_h_plot_merge <- melt(med_f_w_scr_h_plot_merge, 
-                                 id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference",
-                                                  "Butler"))
-(med_f_w_scr_h_plot_diff <- ggplot(med_f_w_scr_h_plot_merge, 
-                                   aes(xmin=xmin, xmax=xmax,
-                                       ymax=value,ymin=0,
-                                       group=variable,
-                                       fill=variable, 
-                                       color=variable,
-                                       alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
- #  ylab("Count\n")+
-    ggtitle("Mediterranean forest, woodland and scrubland\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,33)+
-    ylim(-15,25)) 
-
-      # sla stdev ----
-med_f_w_scr_slastd_h <- j_med_f_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(med_f_w_scr_slastd_h_plot <- ggplot(med_f_w_scr_slastd_h, 
-                                          aes(x=sla_std,group=dataset,
-                                              fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-med_f_w_scr_slastd_h_data <- as.data.table(ggplot_build(med_f_w_scr_slastd_h_plot)$data[1])
-med_f_w_scr_slastd_h_data <- med_f_w_scr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-med_f_w_scr_slastd_h_data_c <- med_f_w_scr_slastd_h_data[group==2]
-med_f_w_scr_slastd_h_data_b <- med_f_w_scr_slastd_h_data[group==1]
-med_f_w_scr_slastd_h_merge <- merge(med_f_w_scr_slastd_h_data_c, 
-                                    med_f_w_scr_slastd_h_data_b, 
-                                         by=c("xmin","xmax"), 
-                                         suffixes = c(".c",".b"), allow.cartesian=TRUE)
-med_f_w_scr_slastd_h_merge <- med_f_w_scr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(med_f_w_scr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-med_f_w_scr_slastd_h_merge <- melt(med_f_w_scr_slastd_h_merge, 
-                                        id.vars = c("xmin","xmax"), 
-                                        measure.vars = c("Cardamom","Difference",
-                                                         "Butler"))
-(med_f_w_scr_slastd_h_diff <- ggplot(med_f_w_scr_slastd_h_merge, 
-                                          aes(xmin=xmin, xmax=xmax,
-                                              ymax=value,ymin=0,
-                                              group=variable,
-                                              fill=variable, 
-                                              color=variable,
-                                              alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #ylab("Count\n")+
-    ggtitle("Mediterranean forests, woodlands and scrubland\n") +
-    theme(legend.title = element_blank())+
-    xlim(0,65)+
-    ylim(-50,50)) 
-
-## other biomes ##
-# 9) desertic and xeric scrubland ---- 
-      # sla mean ---- 
-des_x_scr_h <- j_des_x_s_sla %>%
-  gather(dataset, sla, -x, -y)
-(des_x_scr_h_plot <- ggplot(des_x_scr_h, aes(sla, group = dataset, 
-                                             fill = dataset))+
-    geom_histogram(bins = 100, alpha = 0.4)+
-    theme_ipsum())
-des_x_scr_h_plot_data <- as.data.table(ggplot_build(des_x_scr_h_plot)$data[1])
-des_x_scr_h_plot_data <- dplyr::select(des_x_scr_h_plot_data, 
-                                       count,xmin,xmax,ymin,ymax,group)
-des_x_scr_h_plot_data_c <- des_x_scr_h_plot_data[group == 1]
-des_x_scr_h_plot_data_b <- des_x_scr_h_plot_data[group == 2]
-des_x_scr_h_plot_merge <- merge(des_x_scr_h_plot_data_c, 
-                                des_x_scr_h_plot_data_b, 
-                                by=c("xmin","xmax"), 
-                                suffixes = c(".c",".b"), 
-                                allow.cartesian=TRUE)
-des_x_scr_h_plot_merge <- des_x_scr_h_plot_merge[,Difference:=count.c-count.b]
-setnames(des_x_scr_h_plot_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-des_x_scr_h_plot_merge <- melt(des_x_scr_h_plot_merge, 
-                                 id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference",
-                                                  "Butler"))
-(des_x_scr_h_plot_merge_diff <- ggplot(des_x_scr_h_plot_merge, 
-                                   aes(xmin=xmin, xmax=xmax,
-                                       ymax=value,ymin=0,
-                                       group=variable,
-                                       fill=variable, 
-                                       color=variable,
-                                       alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
- #   xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Desert and xeric scrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-80,150)+
-    xlim(0,40))
-
-      # sla stdev ----
-des_x_scr_slastd_h <- j_des_x_s_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(des_x_scr_slastd_h_plot <- ggplot(des_x_scr_slastd_h, 
-                                     aes(x=sla_std,group=dataset,
-                                         fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-des_x_scr_slastd_h_data <- as.data.table(ggplot_build(des_x_scr_slastd_h_plot)$data[1])
-des_x_scr_slastd_h_data <- des_x_scr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-des_x_scr_slastd_h_data_c <- des_x_scr_slastd_h_data[group==2]
-des_x_scr_slastd_h_data_b <- des_x_scr_slastd_h_data[group==1]
-des_x_scr_slastd_h_merge <- merge(des_x_scr_slastd_h_data_c, 
-                                  des_x_scr_slastd_h_data_b, 
-                                    by=c("xmin","xmax"), 
-                                    suffixes = c(".c",".b"), allow.cartesian=TRUE)
-des_x_scr_slastd_h_merge <- des_x_scr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(des_x_scr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-des_x_scr_slastd_h_merge <- melt(des_x_scr_slastd_h_merge, 
-                                   id.vars = c("xmin","xmax"), 
-                                   measure.vars = c("Cardamom","Difference",
-                                                    "Butler"))
-(des_x_scr_slastd_h_diff <- ggplot(des_x_scr_slastd_h_merge, 
-                                     aes(xmin=xmin, xmax=xmax,
-                                         ymax=value,ymin=0,
-                                         group=variable,
-                                         fill=variable, 
-                                         color=variable,
-                                         alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Desert and xeric scrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70)) 
-
-# 10) temperate grassland, savanna, shrubland ----
-      # sla mean ----
-temp_grass_sav_shr_h <- j_temp_g_s_sh_sla %>%
-  gather(dataset, sla, -x, -y)
-(temp_grass_sav_shr_h_plot <- ggplot(temp_grass_sav_shr_h, 
-                                     aes(sla, group = dataset, 
-                                         fill = dataset))+
-    geom_histogram(bins = 100, alpha = 0.4)+
-    theme_ipsum())
-temp_grass_sav_shr_h_data <- as.data.table(ggplot_build(temp_grass_sav_shr_h_plot)$data[1])
-temp_grass_sav_shr_h_data <- dplyr::select(temp_grass_sav_shr_h_data, 
-                                           count,xmin,xmax,ymin,ymax,group)
-temp_grass_sav_shr_h_data_c <- temp_grass_sav_shr_h_data[group == 1]
-temp_grass_sav_shr_h_data_b <- temp_grass_sav_shr_h_data[group == 2]
-temp_grass_sav_shr_h_merge <- merge(temp_grass_sav_shr_h_data_c,
-                                    temp_grass_sav_shr_h_data_b, 
-                                    by=c("xmin","xmax"), 
-                                    suffixes = c(".c",".b"), 
-                                    allow.cartesian=TRUE)
-temp_grass_sav_shr_h_merge <- temp_grass_sav_shr_h_merge[,Difference:=count.c-count.b]
-setnames(temp_grass_sav_shr_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-temp_grass_sav_shr_h_merge <- melt(temp_grass_sav_shr_h_merge, 
-                               id.vars = c("xmin","xmax"), 
-                               measure.vars = c("Cardamom","Difference",
-                                                "Butler"))
-(temp_grass_sav_shr_h_diff <- ggplot(temp_grass_sav_shr_h_merge, 
-                                       aes(xmin=xmin, xmax=xmax,
-                                           ymax=value,ymin=0,
-                                           group=variable,
-                                           fill=variable, 
-                                           color=variable,
-                                           alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
-   # ylab("Count\n")+
-    ggtitle("Temperate grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-80,150)+
-    xlim(0,40))
-
-      # sla stdev ----
-temp_grass_sav_shr_slastd_h <- j_temp_g_s_sh_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(temp_grass_sav_shr_slastd_h_plot <- ggplot(temp_grass_sav_shr_slastd_h, 
-                                   aes(x=sla_std,group=dataset,
-                                       fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-temp_grass_sav_shr_slastd_h_data <- as.data.table(ggplot_build(temp_grass_sav_shr_slastd_h_plot)$data[1])
-temp_grass_sav_shr_slastd_h_data <- temp_grass_sav_shr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-temp_grass_sav_shr_slastd_h_data_c <- temp_grass_sav_shr_slastd_h_data[group==2]
-temp_grass_sav_shr_slastd_h_data_b <- temp_grass_sav_shr_slastd_h_data[group==1]
-temp_grass_sav_shr_slastd_h_merge <- merge(temp_grass_sav_shr_slastd_h_data_c, 
-                                           temp_grass_sav_shr_slastd_h_data_b, 
-                                  by=c("xmin","xmax"), 
-                                  suffixes = c(".c",".b"), allow.cartesian=TRUE)
-temp_grass_sav_shr_slastd_h_merge <- temp_grass_sav_shr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(temp_grass_sav_shr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-temp_grass_sav_shr_slastd_h_merge <- melt(temp_grass_sav_shr_slastd_h_merge, 
-                                 id.vars = c("xmin","xmax"), 
-                                 measure.vars = c("Cardamom","Difference",
-                                                  "Butler"))
-(temp_grass_sav_shr_slastd_h_diff <- ggplot(temp_grass_sav_shr_slastd_h_merge, 
-                                   aes(xmin=xmin, xmax=xmax,
-                                       ymax=value,ymin=0,
-                                       group=variable,
-                                       fill=variable, 
-                                       color=variable,
-                                       alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
-    ggtitle("Temperate grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70)) 
-
-# 11) montane grassland and shrubland biome ----
-      # sla mean ----
-mont_grass_shr_h <- j_mont_g_shr_sla %>%
-  gather(dataset, sla, -x, -y)
-mont_grass_shr_h_plot <- ggplot(mont_grass_shr_h, 
-                                 aes(sla, group = dataset,
-                                     fill = dataset))+
-  geom_histogram(bins = 100, alpha = 0.4)
-mont_grass_shr_h_plot_data <- as.data.table(ggplot_build(mont_grass_shr_h_plot)$data[1])
-mont_grass_shr_h_plot_data <- dplyr::select(mont_grass_shr_h_plot_data, 
-                                            count,xmin,xmax,ymin,ymax,group)
-mont_grass_shr_h_plot_data_c <- mont_grass_shr_h_plot_data[group == 1]  
-mont_grass_shr_h_plot_data_b <- mont_grass_shr_h_plot_data[group == 2]
-mont_grass_shr_h_plot_merge <- merge(mont_grass_shr_h_plot_data_c,
-                                     mont_grass_shr_h_plot_data_b, 
-                                     by=c("xmin","xmax"), 
-                                     suffixes = c(".c",".b"), 
-                                     allow.cartesian=TRUE)
-mont_grass_shr_h_plot_merge <- mont_grass_shr_h_plot_merge[,Difference:=count.c-count.b]
-setnames(mont_grass_shr_h_plot_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-mont_grass_shr_h_plot_merge <- melt(mont_grass_shr_h_plot_merge, 
-                                   id.vars = c("xmin","xmax"), 
-                                   measure.vars = c("Cardamom","Difference",
-                                                    "Butler"))
-(mont_grass_shr_h_diff <- ggplot(mont_grass_shr_h_plot_merge, 
-                                     aes(xmin=xmin, xmax=xmax,
-                                         ymax=value,ymin=0,
-                                         group=variable,
-                                         fill=variable, 
-                                         color=variable,
-                                         alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-#    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Montane grassland and shrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-25,50)+
-    xlim(0,25))
-
-      # sla stdev ----
-mont_grass_shr_slastd_h <- j_mont_g_shr_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(mont_grass_shr_slastd_h_plot <- ggplot(mont_grass_shr_slastd_h, 
-                                            aes(x=sla_std,group=dataset,
-                                                fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-mont_grass_shr_slastd_h_data <- as.data.table(ggplot_build(mont_grass_shr_slastd_h_plot)$data[1])
-mont_grass_shr_slastd_h_data <- mont_grass_shr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-mont_grass_shr_slastd_h_data_c <- mont_grass_shr_slastd_h_data[group==2]
-mont_grass_shr_slastd_h_data_b <- mont_grass_shr_slastd_h_data[group==1]
-mont_grass_shr_slastd_h_merge <- merge(mont_grass_shr_slastd_h_data_c, 
-                                       mont_grass_shr_slastd_h_data_b, 
-                                           by=c("xmin","xmax"), 
-                                           suffixes = c(".c",".b"), allow.cartesian=TRUE)
-mont_grass_shr_slastd_h_merge <- mont_grass_shr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(mont_grass_shr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-mont_grass_shr_slastd_h_merge <- melt(mont_grass_shr_slastd_h_merge, 
-                                          id.vars = c("xmin","xmax"), 
-                                          measure.vars = c("Cardamom","Difference",
-                                                           "Butler"))
-(mont_grass_shr_slastd_h_diff <- ggplot(mont_grass_shr_slastd_h_merge, 
-                                            aes(xmin=xmin, xmax=xmax,
-                                                ymax=value,ymin=0,
-                                                group=variable,
-                                                fill=variable, 
-                                                color=variable,
-                                                alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Montane grassland and scrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-70, 70)+
-    xlim(0, 65)) 
-
-# 12) mangrove ----
-      # sla mean ----
-mangr_h <- j_mangr_sla %>%
-  gather(dataset, sla, -x, -y)
-(mangr_h_plot <- ggplot(mangr_h, aes(sla, group = dataset, 
-                                     fill = dataset))+
-    geom_histogram(bins = 100, alpha = 0.4)+
-    theme_ipsum())
-mangr_h_plot_data <- as.data.table(ggplot_build(mangr_h_plot)$data[1])
-mangr_h_plot_data <- dplyr::select(mangr_h_plot_data, 
-                                   count, xmin, xmax, ymin, ymax, group)
-mangr_h_plot_data_c <- mangr_h_plot_data[group == 1]
-mangr_h_plot_data_b <- mangr_h_plot_data[group == 2]
-mangr_h_plot_merge <- merge(mangr_h_plot_data_c, 
-                            mangr_h_plot_data_b, 
-                            by=c("xmin","xmax"), 
-                            suffixes = c(".c",".b"), 
-                            allow.cartesian=TRUE)
-mangr_h_plot_merge <- mangr_h_plot_merge[,Difference:=count.c-count.b]
-setnames(mangr_h_plot_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-mangr_h_plot_merge <- melt(mangr_h_plot_merge, 
-                                   id.vars = c("xmin","xmax"), 
-                                   measure.vars = c("Cardamom","Difference",
-                                                    "Butler"))
-(mangr_h_plot_diff <- ggplot(mangr_h_plot_merge, 
-                                     aes(xmin=xmin, xmax=xmax,
-                                         ymax=value,ymin=0,
-                                         group=variable,
-                                         fill=variable, 
-                                         color=variable,
-                                         alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-  #  xlab("\nSpecific Leaf Area (m2.kg-1)")+
-  #  ylab("Count\n")+
-    ggtitle("Mangrove\n") +
-    theme(legend.title = element_blank())+
-    ylim(-25,50)+
-    xlim(0,25))
-
-      # sla stdev ----
-mangr_slastd_h <- j_mangr_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(mangr_slastd_h_plot <- ggplot(mangr_slastd_h, 
-                                        aes(x=sla_std,group=dataset,
-                                            fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-mangr_slastd_h_data <- as.data.table(ggplot_build(mangr_slastd_h_plot)$data[1])
-mangr_slastd_h_data <- mangr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-mangr_slastd_h_data_c <- mangr_slastd_h_data[group==2]
-mangr_slastd_h_data_b <- mangr_slastd_h_data[group==1]
-mangr_slastd_h_merge <- merge(mangr_slastd_h_data_c, 
-                              mangr_slastd_h_data_b, 
-                                       by=c("xmin","xmax"), 
-                                       suffixes = c(".c",".b"), allow.cartesian=TRUE)
-mangr_slastd_h_merge <- mangr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(mangr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-mangr_slastd_h_merge <- melt(mangr_slastd_h_merge, 
-                                      id.vars = c("xmin","xmax"), 
-                                      measure.vars = c("Cardamom","Difference",
-                                                       "Butler"))
-(mangr_slastd_h_diff <- ggplot(mangr_slastd_h_merge, 
-                                        aes(xmin=xmin, xmax=xmax,
-                                            ymax=value,ymin=0,
-                                            group=variable,
-                                            fill=variable, 
-                                            color=variable,
-                                            alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    #  xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    #  ylab("Count\n")+
-    ggtitle("Mangrove\n") +
-    theme(legend.title = element_blank())+
-    ylim(-70, 70)+
-    xlim(0, 65)) 
-
-# 13) flooded grassland and savanna ----
-      # sla mean ----
-flo_grass_sav_h <- j_flo_g_sav_sla %>%
-  gather(dataset, sla, -x, -y)
-(flo_grass_sav_h_plot <- ggplot(flo_grass_sav_h, aes(sla, 
-                                                     group = dataset,
-                                                     fill = dataset))+
-    geom_histogram(bins = 100, alpha = 0.4)+
-    theme_ipsum())
-flo_grass_sav_h_plot_data <- as.data.table(ggplot_build(flo_grass_sav_h_plot)$data[1])
-flo_grass_sav_h_plot_data <- dplyr::select(flo_grass_sav_h_plot_data, 
-                                           count, xmin, xmax, ymin, ymax, group)
-flo_grass_sav_h_plot_data_c <- flo_grass_sav_h_plot_data[group == 1]
-flo_grass_sav_h_plot_data_b <- flo_grass_sav_h_plot_data[group == 2]
-flo_grass_sav_h_plot_merge <- merge(flo_grass_sav_h_plot_data_c,
-                                    flo_grass_sav_h_plot_data_b, 
-                                    by=c("xmin","xmax"), 
-                                    suffixes = c(".c",".b"), 
-                                    allow.cartesian=TRUE)
-flo_grass_sav_h_plot_merge <- flo_grass_sav_h_plot_merge[,Difference:=count.c-count.b]
-setnames(flo_grass_sav_h_plot_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-flo_grass_sav_h_plot_merge <- melt(flo_grass_sav_h_plot_merge, 
-                           id.vars = c("xmin","xmax"), 
-                           measure.vars = c("Cardamom","Difference",
-                                            "Butler"))
-(flo_grass_sav_h_plot_diff <- ggplot(flo_grass_sav_h_plot_merge, 
-                             aes(xmin=xmin, xmax=xmax,
-                                 ymax=value,ymin=0,
-                                 group=variable,
-                                 fill=variable, 
-                                 color=variable,
-                                 alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Flooded grassland and savanna\n") +
-    theme(legend.title = element_blank())+
-    ylim(-25,50)+
-    xlim(0,25))
-
-      # sla stdev ---- 
-flo_grass_sav_slatd_h <- j_flo_g_sav_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(flo_grass_sav_slatd_h_plot <- ggplot(flo_grass_sav_slatd_h, 
-                               aes(x=sla_std,group=dataset,
-                                   fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-flo_grass_sav_slatd_h_data <- as.data.table(ggplot_build(flo_grass_sav_slatd_h_plot)$data[1])
-flo_grass_sav_slatd_h_data <- flo_grass_sav_slatd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-flo_grass_sav_slatd_h_data_c <- flo_grass_sav_slatd_h_data[group==2]
-flo_grass_sav_slatd_h_data_b <- flo_grass_sav_slatd_h_data[group==1]
-flo_grass_sav_slatd_h_merge <- merge(flo_grass_sav_slatd_h_data_c, 
-                                     flo_grass_sav_slatd_h_data_b, 
-                              by=c("xmin","xmax"), 
-                              suffixes = c(".c",".b"), allow.cartesian=TRUE)
-flo_grass_sav_slatd_h_merge <- flo_grass_sav_slatd_h_merge[,Difference:=count.c-count.b]
-setnames(flo_grass_sav_slatd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-flo_grass_sav_slatd_h_merge <- melt(flo_grass_sav_slatd_h_merge, 
-                             id.vars = c("xmin","xmax"), 
-                             measure.vars = c("Cardamom","Difference",
-                                              "Butler"))
-(flo_grass_sav_slatd_h_diff <- ggplot(flo_grass_sav_slatd_h_merge, 
-                               aes(xmin=xmin, xmax=xmax,
-                                   ymax=value,ymin=0,
-                                   group=variable,
-                                   fill=variable, 
-                                   color=variable,
-                                   alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Flooded grassland and savanna\n") +
-    theme(legend.title = element_blank())+
-    ylim(-70, 70)+
-    xlim(0, 65))
-
-# 14) tropical and subtropical grassland, savanna, shrubland ----
-      # sla mean ----
-trpsbtrp_grass_sav_shr_h <- j_trpsbtrp_g_sav_shr_sla %>%
-  gather(dataset, sla, -x, -y)
-trpsbtrp_grass_sav_shr_h_plot <- ggplot(trpsbtrp_grass_sav_shr_h,
-                                         aes(sla, group = dataset,
-                                             fill = dataset))+
-  geom_histogram(bins = 100, alpha = 0.4)
-trpsbtrp_grass_sav_shr_h_data <- as.data.table(ggplot_build(trpsbtrp_grass_sav_shr_h_plot)$data[1])
-trpsbtrp_grass_sav_shr_h_data <- dplyr::select(trpsbtrp_grass_sav_shr_h_data,
-                                               count,xmin,xmax,ymin,ymax,group)
-trpsbtrp_grass_sav_shr_h_data_c <- trpsbtrp_grass_sav_shr_h_data[group == 1]
-trpsbtrp_grass_sav_shr_h_data_b <- trpsbtrp_grass_sav_shr_h_data[group == 2]
-trpsbtrp_grass_sav_shr_h_merge <- merge(trpsbtrp_grass_sav_shr_h_data_c, 
-                                        trpsbtrp_grass_sav_shr_h_data_b, 
-                                        by=c("xmin","xmax"), 
-                                        suffixes = c(".c",".b"), 
-                                        allow.cartesian=TRUE)
-trpsbtrp_grass_sav_shr_h_merge <- trpsbtrp_grass_sav_shr_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_grass_sav_shr_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom","Butler"))
-trpsbtrp_grass_sav_shr_h_merge <- melt(trpsbtrp_grass_sav_shr_h_merge, 
-                           id.vars = c("xmin","xmax"), 
-                           measure.vars = c("Cardamom","Difference",
-                                            "Butler"))
-(trpsbtrp_grass_sav_shr_h_diff <- ggplot(trpsbtrp_grass_sav_shr_h_merge, 
-                             aes(xmin=xmin, xmax=xmax,
-                                 ymax=value,ymin=0,
-                                 group=variable,
-                                 fill=variable, 
-                                 color=variable,
-                                 alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area (m2.kg-1)")+
-  #  ylab("Count\n")+
-    ggtitle("Tropical and subtropical grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-80,150)+
-    xlim(0,40))
-
-      # sla stdev ----
-trpsbtrp_grass_sav_shr_slastd_h <- j_trpsbtrp_g_sav_shr_slastd %>%
-  gather(key = "dataset",value="sla_std", -x,-y)
-(trpsbtrp_grass_sav_shr_slastd_h_plot <- ggplot(trpsbtrp_grass_sav_shr_slastd_h, 
-                                      aes(x=sla_std,group=dataset,
-                                          fill=dataset))+
-    geom_histogram(bins = 100, alpha=0.4)+
-    theme_ipsum())
-trpsbtrp_grass_sav_shr_slastd_h_data <- as.data.table(ggplot_build(trpsbtrp_grass_sav_shr_slastd_h_plot)$data[1])
-trpsbtrp_grass_sav_shr_slastd_h_data <- trpsbtrp_grass_sav_shr_slastd_h_data %>%
-  dplyr::select(count, xmin, xmax, group) 
-trpsbtrp_grass_sav_shr_slastd_h_data_c <- trpsbtrp_grass_sav_shr_slastd_h_data[group==2]
-trpsbtrp_grass_sav_shr_slastd_h_data_b <- trpsbtrp_grass_sav_shr_slastd_h_data[group==1]
-trpsbtrp_grass_sav_shr_slastd_h_merge <- merge(trpsbtrp_grass_sav_shr_slastd_h_data_c, 
-                                               trpsbtrp_grass_sav_shr_slastd_h_data_b, 
-                                     by=c("xmin","xmax"), 
-                                     suffixes = c(".c",".b"), allow.cartesian=TRUE)
-trpsbtrp_grass_sav_shr_slastd_h_merge <- trpsbtrp_grass_sav_shr_slastd_h_merge[,Difference:=count.c-count.b]
-setnames(trpsbtrp_grass_sav_shr_slastd_h_merge, old = c("count.c","count.b"),
-         new = c("Cardamom", "Butler"))
-trpsbtrp_grass_sav_shr_slastd_h_merge <- melt(trpsbtrp_grass_sav_shr_slastd_h_merge, 
-                                    id.vars = c("xmin","xmax"), 
-                                    measure.vars = c("Cardamom","Difference",
-                                                     "Butler"))
-(trpsbtrp_grass_sav_shr_slastd_h_diff <- ggplot(trpsbtrp_grass_sav_shr_slastd_h_merge, 
-                                      aes(xmin=xmin, xmax=xmax,
-                                          ymax=value,ymin=0,
-                                          group=variable,
-                                          fill=variable, 
-                                          color=variable,
-                                          alpha = 0.7))+
-    geom_rect()+
-    theme_classic()+
-    scale_fill_viridis(discrete = TRUE)+
-    scale_color_manual(values=c("black","black","black"))+
-    xlab("\nSpecific Leaf Area StDev (m2.kg-1)")+
-    ylab("Count\n")+
-    ggtitle("Tropical and subtropical grassland, savanna and shrubland\n") +
-    theme(legend.title = element_blank())+
-    ylim(-200, 200)+
-    xlim(0, 70))
+  # sla stdev ----
+biome.std.list <- list(taiga_slastd=j_taiga_slastd, 
+                       tundra_slastd=j_tundra_slastd,
+                       tmp_c_slastd=j_tmp_c_slastd, 
+                       tmp_b_m_slastd=j_tmp_b_m_slastd,
+                       trp_sbtrp_d_b_slastd=j_trp_sbtrp_d_b_slastd, 
+                       trp_sbtrp_c_slastd=j_trp_sbtrp_c_slastd,
+                       trp_sbtrp_m_br_slastd=j_trp_sbtrp_m_br_slastd, 
+                       med_f_slastd=j_med_f_slastd,
+                       des_x_s_slastd=j_des_x_s_slastd, 
+                       temp_g_s_sh_slastd=j_temp_g_s_sh_slastd,
+                       mont_g_shr_slastd=j_mont_g_shr_slastd, 
+                       mangr_slastd=j_mangr_slastd,
+                       flo_g_sav_slastd=j_flo_g_sav_slastd, 
+                       trpsbtrp_g_sav_shr_slastd=j_trpsbtrp_g_sav_shr_slastd)
+biome.std.list.n <- list()
+density.std.plot <- list()
+for (i in 1:length(biome.std.list)){
+  biome.std.list[[i]] <- biome.std.list[[i]]%>%
+    filter(Standard_Deviation!=0,specific.leaf.area!=0) %>%
+    rename("cardamom" = Standard_Deviation, "butler" = specific.leaf.area) 
+  list <- list(cardamom=biome.std.list[[i]][["cardamom"]],
+               butler=biome.std.list[[i]][["butler"]])
+  name <- paste(names(biome.std.list)[i],"n",sep = "_")
+  biome.std.list.n[[name]] <- list
+  for (j in 1:length(biome.std.list.n)){
+    # density.plot.name <- paste("biome",j,"density_plot", sep = "_")
+    plot_name <- paste("./figures/biome_std",names(biome.std.list)[i],
+                       "density_overlap.png",sep = "_")
+    png(plot_name, width = 40, height = 20, units = "cm", res = 400)
+    density.std.plot[[j]] <- my.overlap(biome.std.list.n[[j]], plot = TRUE)
+    # print(density.plot[[j]])
+    dev.off()
+  }
+}
 
 
-## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla mean ----
-  # major biomes 1
-(panel_majbiome_hist_diff <- ggarrange(taiga_sla_hist_diff_plot,
-                                    tundra_sla_hist_diff_plot,
-                                    tmp_b_m_sla_h_diff, 
-                                    trpsbtrp_m_broad_h_diff,
-                                    ncol = 2,
-                                    nrow = 2, common.legend = TRUE,
-                                    align = "hv"))
-ggsave("./figures/panel_majbiome_diff_hist1.png", panel_majbiome_hist_diff, 
-       width = 40, height = 25, units = "cm", dpi = 500)
-
-  # major biomes 2
-(panel_majbiome_hist_diff_2 <- ggarrange(temp_con_sla_hist_diff_plot,
-                                      trpsbtrp_d_broad_h_diff,
-                                      trpsbtrp_conif_h_diff,
-                                      med_f_w_scr_h_plot_diff,
-                                      ncol = 2, 
-                                      nrow = 2,
-                                      common.legend = TRUE,
-                                      align = "hv"))
-ggsave("./figures/panel_majbiome_diff_hist2.png", panel_majbiome_hist_diff_2,
-       width = 40, height = 25, units = "cm", dpi = 500)
-
-  # other biomes 1
-(panel_obiome1_hist_diff <- ggarrange(des_x_scr_h_plot_merge_diff,
-                                     temp_grass_sav_shr_h_diff,
-                                     trpsbtrp_grass_sav_shr_h_diff,
-                                     ncol = 2,
-                                     nrow = 2,
-                                     common.legend = TRUE,
-                                     align = "v"))
-ggsave("./figures/panel_obiome1_diff_hist.png", panel_obiome1_hist_diff,
-       width = 45, height = 20, units = "cm", dpi = 500)
-
-  # other biomes 2
-(panel_obiome2_hist_diff <- ggarrange(mont_grass_shr_h_diff,
-                                      mangr_h_plot_diff,
-                                      flo_grass_sav_h_plot_diff,
-                                      ncol = 2,
-                                      nrow = 2,
-                                      common.legend = TRUE,
-                                      align = "hv"))
-ggsave("./figures/panel_obiome2_diff_hist.png", panel_obiome2_hist_diff,
-       width = 45, height = 20, units = "cm", dpi = )
-
-## HISTOGRAM DIFF PANELLED FOR 14 BIOMES sla stdev ----
-  # major biomes 1
-(panel_majbiome1_hist_slastd_diff <- ggarrange(taiga_slastd_hist_diff_plot,
-                                           tundra_slastd_h_diff,
-                                           temp_c_slastd_h_diff,
-                                           trpsbtrp_m_broad_slastd_h_diff,
-                                           temp_broad_mix_slastd_h_diff,
-                                           ncol = 2,
-                                           nrow = 3,
-                                           common.legend = TRUE,
-                                           align = "v"))
-ggsave("./figures/panel_majbiome1_hist_slastd_diff.png", 
-       panel_majbiome1_hist_slastd_diff,
-       width = 45, height = 20, units = "cm", dpi = 500) 
-
-  # major biomes 2
-(panel_majbiome2_hist_slastd_diff <- ggarrange(trpsbtrp_dry_broad_slastd_h_diff,
-                                              trpsbtrp_conif_slastd_h_diff,
-                                              med_f_w_scr_slastd_h_diff,
-                                              ncol = 2,
-                                              nrow = 2,
-                                              common.legend = TRUE,
-                                              align = "v"))
-ggsave("./figures/panel_majbiome2_hist_slastd_diff.png", 
-       panel_majbiome2_hist_slastd_diff,
-       width = 45, height = 20, units = "cm", dpi = 500)
-
-  # other biomes 1
-(panel_obiome1_hist_slastd_diff <- ggarrange(des_x_scr_slastd_h_diff,
-                                            temp_grass_sav_shr_slastd_h_diff,
-                                            trpsbtrp_grass_sav_shr_slastd_h_diff,
-                                            ncol = 2,
-                                            nrow = 2,
-                                            common.legend = TRUE,
-                                            align = "v"))
-
-ggsave("./figures/panel_obiomes1_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
-       width = 45, height = 20, units = "cm", dpi = 500)
-
-  # other biomes 2
-(panel_obiome2_hist_slastd_diff <- ggarrange(mont_grass_shr_slastd_h_diff,
-                                             mangr_slastd_h_diff,
-                                             flo_grass_sav_slatd_h_diff,
-                                            ncol = 2,
-                                            nrow = 2,
-                                            common.legend = TRUE,
-                                            align = "v"))
-
-ggsave("./figures/panel_obiomes2_hist_slastd_diff.png", panel_obiome_hist_slastd_diff,
-       width = 45, height = 20, units = "cm", dpi = 500)
-
-
+#### ATTEMPT TO AUTOMATISE THE STIPPLING BY BIOME ####
+# list of masks by biome only for butler 
+biome.raster.list <- list(m.taiga.b=masked_taiga_sla_b,
+                          m.tundra.b= masked_tundra_sla_b,
+                          m.des.b = mask_des_x_scr_sla_b,
+                          m.trp.g.b = mask_trp_sbtrp_grass_sav_shr_sla_b,
+                          m.temp.c.b=mask_temp_conif_sla_b,
+                          m.med.b=mask_med_f_w_scr_sla_b,
+                          m.mang.b=mask_mangroves_sla_b,
+                          m.temp.bm.b=mask_temp_broad_mix_sla_b,
+                          m.trp.c.b=mask_trp_sbtrp_conif_sla_b,
+                          m.flo.g.b=mask_flo_grass_sav_sla_b,
+                          m.mont.g.b=mask_mont_grass_shr_sla_b,
+                          m.trp.db.b=mask_trp_sbtrp_dry_broad_sla_b,
+                          m.trp.mb.b=mask_trp_sbtrp_moist_broad_sla_b,
+                          m.temp.g.b=mask_temp_grass_sav_shr_sla_b)
+biome.stp.25 <- list()
+biome.stp.75 <-list()
+biome.stp.95 <- list()
+length.biomes <- length(names(biome.raster.list))
+stp.locs.75 <- list()
+stp.locs.95<- list()
+diff.stp.locs <- list()
+for (i in 1:length(biome.raster.list)){
+  stp.25 <- raster::mask(cardamom_25th, biome.raster.list[[i]])
+  stp.75 <- raster::mask(cardamom_75th, biome.raster.list[[i]])
+  stp.95 <- raster::mask(cardamom_95th, biome.raster.list[[i]])
+  stp.name25 <- paste("stp25", names(biome.raster.list)[i],sep = ".")
+  stp.name75 <- paste("stp75", names(biome.raster.list)[i],sep = ".")
+  stp.name95 <- paste("stp95",names(biome.raster.list)[i],sep=".")
+  biome.stp.25[[stp.name25]] <- stp.25
+  biome.stp.75[[stp.name75]] <- stp.75
+  biome.stp.95[[stp.name95]] <- stp.95
+  stp.locs.75.calc <- (biome.raster.list[[i]]>=biome.stp.25[[i]])*
+    (biome.raster.list[[i]]<= biome.stp.75[[i]])
+  stp.locs.95.calc <- (biome.raster.list[[i]]>=biome.stp.25[[i]])*
+    (biome.raster.list[[i]]<= biome.stp.95[[i]])
+  stp.locs.75.p <- rasterToPoints(stp.locs.75.calc)
+  stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[,"layer"]==1,]
+  stp.locs.95.p <- rasterToPoints(stp.locs.95.calc)
+  stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[,"layer"]==1,]
+  stp.locs.75n <- paste("stp.locs",names(biome.raster.list)[i],"75",sep = ".")
+  stp.locs.95n <- paste("stp.locs",names(biome.raster.list)[i],"95",sep = ".")
+  stp.locs.75.c.l[[stp.locs.75n]] <- stp.locs.75.calc
+  stp.locs.95.c.l[[stp.locs.75n]] <- stp.locs.95.calc
+  stp.locs.75[[stp.locs.75n]]<- stp.locs.75.p
+  stp.locs.95[[stp.locs.95n]]<- stp.locs.95.p
+  diff.stp.locs.calc <- as.data.frame(stp.locs.95[[i]]) %>% 
+    setdiff(as.data.frame(stp.locs.75[[i]])) %>% 
+    as.matrix  
+  diff.stp.locs.n <- paste("diff",names(biome.raster.list)[i],sep = ".")
+  diff.stp.locs[[diff.stp.locs.n]] <- diff.stp.locs.calc
+  png(paste("./figures/stippling",names(biome.raster.list)[i],".png",sep = "."),
+      width = 50,height = 30,units = "cm",res = 500)
+  plot(biome.raster.list[[i]],asp=NA,col=rev(brewer.pal(10,"RdYlBu")),
+       legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                          side=4, font=1, line=2.3),
+       main="Butler Sla Mean (stippling)\n")
+  points(stp.locs.75[[i]],pch=18,cex=0.8)
+  points(diff.stp.locs[[i]],pch=23,cex=0.9,col="darkgreen",bg="green")
+  dev.off()
+}
 
 # HEATSCATTER SLA MEAN MAJ BIOMES ----
 png("./figures/panel_heatsc_biome_sla.png", width = 50, height = 30,
