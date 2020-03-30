@@ -7,7 +7,7 @@
 ## things to do 
   
 # MODEL = BUTLER 
-# OBSERVATIONS = CARDAMOM
+# OBSERVATIONS = CARDAMOM = REFERENCE
 
 ## STIPPLING!!!!!!!! to represent uncertainty (units same as that of mean)
 
@@ -160,6 +160,7 @@ plot(cardamom_sla_std[[1]]-butler_sla_std[[1]], asp=NA, breaks=breakpoints,
 dev.off()
 
 
+
 ### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
 # sla mean
 gl_stip_locs <- (butler_sla[[1]] >= cardamom_25th[[1]])*
@@ -189,7 +190,6 @@ stip_locs_std <- (butler_sla_std[[1]] >= cardamom_25th[[1]])*
   (butler_sla_std[[1]]<=cardamom_75th[[1]])
 stip_locs_std <- rasterToPoints(stip_locs_std)
 stip_locs_std <- stip_locs_std[stip_locs_std[, "layer"] == 1,]
-#(butler_stippling <- levelplot(butler_sla[[1]]))
 stip_locs_std_95 <- (butler_sla_std[[1]]>=cardamom_25th[[1]])*
   (butler_sla_std[[1]]<=cardamom_95th[[1]])
 stip_locs_std_95 <- rasterToPoints(stip_locs_std_95)
@@ -206,8 +206,6 @@ plot(butler_sla_std, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
      main="Butler Sla StDev (stippling)\n")
 points(stip_locs_std, pch = 18, cex=0.5)
 dev.off()
-
-
 
 
 ### 1) DATA EXPLORATION 1 - SERIES OF PLOTS ----
@@ -429,9 +427,10 @@ global_sla_stat <- joined_sla %>%
          sqrd_dist_b = dist_mean_new_b^2,
          sum_sqrd_dist_b = sum(sqrd_dist_b),
          sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)),
-         bias = bias(butler, new_b_val))
+         rmse_av = rmse(butler, cardamom),
+         rmse_row = sqrt(se(butler, cardamom)),
+         bias = bias(butler, cardamom),
+         bias_row = butler-cardamom)
 
 # plotting rmse sla mean 
 (sla_rmse_plot <- ggplot(global_sla_stat, aes(x,y,color=rmse_row))+
@@ -463,9 +462,10 @@ global_slastd_stat <- joined_sla_std %>%
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
          sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)),
-         bias = bias(butler_std, new_bstd_val))
+         rmse_av = rmse(butler_std, cardamom_std),
+         rmse_row = sqrt(se(butler_std, cardamom_std)),
+         bias = bias(butler_std, cardamom_std),
+         bias_row = butler_std-cardamom_std)
 
 # plotting rmse sla stdev  
 (slastd_rmse_plot <- ggplot(global_slastd_stat, aes(x,y,color=rmse_row))+
@@ -552,17 +552,6 @@ sbtrpS_df <- raster::as.data.frame(sbtrpS, xy = TRUE)
 
 # merging two datasets from two hemispheres to have them in one dataframe
 sbtrp_c <- merge(sbtrpN_df, sbtrpS_df, by=c("x", "y", "sla"), all=TRUE) 
-# this works 
-  # plotting the two strips of latitude of subtropics
-(trial <- ggplot(sbtrpSTD_b, aes(x,y,color=butler_std))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
 
   # sla std 
 sbtrp_std_N <- crop(cardamom_sla_std, sbtrpextN)
@@ -672,6 +661,7 @@ plN_slastd_b_df <- raster::as.data.frame(plN_slastd_b, xy = TRUE)
 # joining butler and cardamom for poles lat
 plN <- left_join(plN_c_df, plN_b_df)
 plN_std <- left_join(plN_slastd_c_df, plN_slastd_b_df)
+
 
 #### CREATING THE FUNCTIONS FOR OVERLAP PLOTS (modif from overlapping package) ####
 my.final.plot <- function (x, OV = NULL){
@@ -818,60 +808,140 @@ for (i in 1:length(lat.std.list)){
 
 
 ### STIPPLING FOR BUTLER SLA MEAN (25th-75th and 25th-95th percentiles) ----
+# creating loops for latitude ranges
+lat.stp.25 <- list()
+lat.stp.75 <-list()
+lat.stp.95 <- list()
+stp.locs.75 <- list()
+stp.locs.95<- list()
+diff.stp.locs <- list()
   # sla mean
-# 25th percentile 
-trp_25pc <- crop(cardamom_25th, trpext)
-trp_25pc <- raster::mask(trp_25pc, trp_b)
-# 75th percentile
-trp_75pc <- raster::mask(trp_25pc, boreal_f_taiga)
-# 95th percentile 
-trp_95pc <- raster::mask(trp_25pc, boreal_f_taiga)
-trp_stp <- (trp_b[[1]] >= trp_25pc[[1]])*
-  (trp_b[[1]]<=trp_75pc[[1]])
-trp_stp <- rasterToPoints(trp_stp)
-trp_stp <- trp_stp[trp_stp[, "layer"] == 1,]
-trp_stp_95 <- (trp_b[[1]]>=trp_25pc[[1]])*
-  (trp_b[[1]]<=trp_95pc[[1]])
-trp_stp_95 <- rasterToPoints(trp_stp_95)
-trp_stp_95 <- trp_stp_95[trp_stp_95[, "layer"] ==1,]
-trp_diff_stp <- as.data.frame(trp_stp_95) %>% 
-  setdiff(as.data.frame(trp_stp)) %>% 
-  as.matrix
-png("./figures/stippling_world.png", width = 40, height = 25, 
-    units = "cm", res = 500)
-plot(butler_sla, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
-     xlab="\nLongitude", ylab="Latitude", 
-     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
-                        side=4, font=1, line=2.3),
-     main="Butler Sla Mean (stippling)\n")
-points(stip_locs, pch = 18, cex=0.5)
-points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
-dev.off()
+lat.list <- list(tropics=trp_b,subtropics_N=sbtrpN_b,subtropics_S=sbtrpS_b,
+                 temperate_N=tmp_b_N,temperate_S=tmp_b_S,pole_N=plN_b)
 
-# sla stdev 
-stip_locs_std <- (butler_sla_std[[1]] >= cardamom_25th[[1]])*
-  (butler_sla_std[[1]]<=cardamom_75th[[1]])
-stip_locs_std <- rasterToPoints(stip_locs_std)
-stip_locs_std <- stip_locs_std[stip_locs_std[, "layer"] == 1,]
-#(butler_stippling <- levelplot(butler_sla[[1]]))
-stip_locs_std_95 <- (butler_sla_std[[1]]>=cardamom_25th[[1]])*
-  (butler_sla_std[[1]]<=cardamom_95th[[1]])
-stip_locs_std_95 <- rasterToPoints(stip_locs_std_95)
-stip_locs_std_95 <- stip_locs_std_95[stip_locs_std_95[, "layer"] ==1,]
-diff_pc_std <- as.data.frame(stip_locs_std_95) %>% 
-  setdiff(as.data.frame(stip_locs_std)) %>% 
-  as.matrix # no difference - the points lay exclusively within 25-75pc here (for stdev)
-png("./figures/stippling_std_world.png", width = 40, height = 25, 
-    units = "cm", res = 500)
-plot(butler_sla_std, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
-     xlab="\nLongitude", ylab="Latitude", 
-     legend.args = list(text="\n\nSLA StDev (m2.kg-1)", 
-                        side=4, font=1, line=2.3),
-     main="Butler Sla StDev (stippling)\n")
-points(stip_locs_std, pch = 18, cex=0.5)
-dev.off()
+for (i in 1:length(lat.list)){
+  crop.25 <- crop(cardamom_25th,extent[[i]])
+  crop.75 <- crop(cardamom_75th, extent[[i]])
+  crop.95 <- crop(cardamom_95th, extent[[i]])
+  stp.25 <- raster::mask(crop.25, lat.list[[i]])
+  stp.75 <- raster::mask(crop.75, lat.list[[i]])
+  stp.95 <- raster::mask(crop.95, lat.list[[i]])
+  stp.name25 <- paste("stp25", names(lat.list)[i],sep = ".")
+  stp.name75 <- paste("stp75", names(lat.list)[i],sep = ".")
+  stp.name95 <- paste("stp95",names(lat.list)[i],sep=".")
+  lat.stp.25[[stp.name25]] <- stp.25
+  lat.stp.75[[stp.name75]] <- stp.75
+  lat.stp.95[[stp.name95]] <- stp.95
+  stp.locs.75.calc <- (lat.list[[i]]>=lat.stp.25[[i]])*
+    (lat.list[[i]]<= lat.stp.75[[i]])
+  stp.locs.95.calc <- (lat.list[[i]]>=lat.stp.25[[i]])*
+    (lat.list[[i]]<= lat.stp.95[[i]])
+  stp.locs.75.p <- rasterToPoints(stp.locs.75.calc)
+  stp.locs.95.p <- rasterToPoints(stp.locs.95.calc)
+  stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[, "layer"] == 1,]
+  stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[, "layer"] == 1,]
+  stp.locs.75n <- paste("stp.locs",names(lat.list)[i],"75",
+                        sep = ".")
+  stp.locs.95n <- paste("stp.locs",names(lat.list)[i],"95",
+                        sep = ".")
+  stp.locs.75[[stp.locs.75n]]<- stp.locs.75.p
+  stp.locs.95[[stp.locs.95n]]<- stp.locs.95.p
+  diff.stp.locs.calc <- as.data.frame(stp.locs.95[[i]]) %>% 
+    setdiff(as.data.frame(stp.locs.75[[i]])) %>% 
+    as.matrix 
+  diff.stp.locs.n <- paste("diff",names(lat.list)[i],sep = ".")
+  diff.stp.locs[[diff.stp.locs.n]] <- diff.stp.locs.calc
+  png(paste("./figures/lat.stippling",names(lat.list)[i],".png",
+            sep = "."),
+      width = 50,height = 25,units = "cm",res = 500)
+  plot(lat.list[[i]],col=rev(brewer.pal(10,"RdYlBu")),
+       legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                          side=4, font=1, line=2.3),
+       main="Butler Sla Mean (stippling)\n")
+  points(stp.locs.75[[i]],pch=18,cex=0.8)
+  points(diff.stp.locs[[i]],pch=23,cex=0.9,col="darkgreen",bg="green")
+  dev.off()
+}
+
+  # sla stdev 
+lat.std.list <- list(tropics.std=trp_b_std,subtropics.std_N=sbtrpSTD_b_N,
+                     subtropics.std_S=sbtrpSTD_b_S,temperate.std_N=tmpSTD_b_N,
+                     temperate.std_S=tmpSTD_b_S,pole.std_N=plN_slastd_b) 
+for (i in 1:length(lat.std.list)){
+  crop.25 <- crop(cardamom_25th,extent[[i]])
+  crop.75 <- crop(cardamom_75th, extent[[i]])
+  crop.95 <- crop(cardamom_95th, extent[[i]])
+  stp.25 <- raster::mask(crop.25, lat.std.list[[i]])
+  stp.75 <- raster::mask(crop.75, lat.std.list[[i]])
+  stp.95 <- raster::mask(crop.95, lat.std.list[[i]])
+  stp.name25 <- paste("stp25", names(lat.std.list)[i],sep = ".")
+  stp.name75 <- paste("stp75", names(lat.std.list)[i],sep = ".")
+  stp.name95 <- paste("stp95",names(lat.std.list)[i],sep=".")
+  lat.stp.25[[stp.name25]] <- stp.25
+  lat.stp.75[[stp.name75]] <- stp.75
+  lat.stp.95[[stp.name95]] <- stp.95
+  stp.locs.75.calc <- (lat.std.list[[i]]>=lat.stp.25[[i]])*
+    (lat.std.list[[i]]<= lat.stp.75[[i]])
+  stp.locs.95.calc <- (lat.std.list[[i]]>=lat.stp.25[[i]])*
+    (lat.std.list[[i]]<= lat.stp.95[[i]])
+  stp.locs.75.p <- rasterToPoints(stp.locs.75.calc)
+  stp.locs.95.p <- rasterToPoints(stp.locs.95.calc)
+  stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[, "layer"] == 1,]
+  stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[, "layer"] == 1,]
+  stp.locs.75n <- paste("stp.locs",names(lat.std.list)[i],"75",
+                        sep = ".")
+  stp.locs.95n <- paste("stp.locs",names(lat.std.list)[i],"95",
+                        sep = ".")
+  stp.locs.75[[stp.locs.75n]]<- stp.locs.75.p
+  stp.locs.95[[stp.locs.95n]]<- stp.locs.95.p
+  diff.stp.locs.calc <- as.data.frame(stp.locs.95[[i]]) %>% 
+    setdiff(as.data.frame(stp.locs.75[[i]])) %>% 
+    as.matrix 
+  diff.stp.locs.n <- paste("diff",names(lat.std.list)[i],sep = ".")
+  diff.stp.locs[[diff.stp.locs.n]] <- diff.stp.locs.calc
+  png(paste("./figures/lat.std.stippling",names(lat.std.list)[i],".png",
+            sep = "."),
+      width = 50,height = 25,units = "cm",res = 500)
+  plot(lat.std.list[[i]],col=rev(brewer.pal(10,"RdYlBu")),
+       legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                          side=4, font=1, line=2.3),
+       main="Butler Sla Mean (stippling)\n")
+  points(stp.locs.75[[i]],pch=18,cex=0.8)
+  points(diff.stp.locs[[i]],pch=23,cex=0.9,col="darkgreen",bg="green")
+  dev.off()
+}
 
 
+
+
+#### latitude STATS ####
+lat.df <- list(tropics_sla=trpSLA,subtropics_sla=sbtrp_joined_SLA,
+               temperate_sla=tmp_sla, pole_sla=plN)
+lat.stats <- list()
+for (i in 1:length(lat.df)){
+  stats <- lat.df[[i]] %>%
+    rename("cardamom"=sla, "butler"=specific.leaf.area)%>%
+    filter(cardamom!=0, butler!=0) %>%
+    mutate(mean_c = mean(cardamom),
+           mean_b = mean(butler),
+           diff_butler = butler-mean_b,
+           diff_butler2 = diff_butler^2,
+           sum_diff_butler2 = sum(diff_butler2),
+           slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
+             sum((cardamom-mean_c)^2),
+           b_intercept = mean_b - (slope_bf*mean_c),
+           new_b_val = b_intercept + (slope_bf*cardamom),
+           dist_mean_new_b = new_b_val - mean_b,
+           sqrd_dist_b = dist_mean_new_b^2,
+           sum_sqrd_dist_b = sum(sqrd_dist_b),
+           trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
+           rmse_av = rmse(butler, cardamom),
+           rmse_row = sqrt(se(butler, cardamom)),
+           bias = bias(butler, cardamom),
+           bias_row = butler-cardamom)
+  name.lat <- paste("stat",names(lat.df)[i],sep = ".")
+  lat.stats[[name.lat]] <- stats
+}
 
 # HEATSCATTER: saving figure for sla mean by latitudinal range----
 png("./figures/heatsc_latitude_sla.png", width = 40, height = 30, 
@@ -905,72 +975,6 @@ trp_b_std_n <- trpSTD$butler_std
                                add.contour=TRUE, main = "Tropics SLA StDev",
                                xlab="", 
                                ylab="Butler"))
-
-## stats: r2, rmse, bias ----
-# sla mean
-trps_sla_stat <- trpSLA %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)),
-         bias = bias(butler, new_b_val))
-# Multiple R-squared:  0.1271
-# plotting rmse for each data point: sla mean
-(trps_sla_rmse_plot <- ggplot(trps_sla_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TROPICS Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-# sla stdev
-trps_std_stat <- trpSTD %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         trps_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)),
-         bias = bias(butler_std, new_bstd_val))
-# R2 stdev tropics: 0.0380433
-
-# plotting rmse for each data point: stdev
-(trp_slastd_rmse_plot <- ggplot(trps_std_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TROPICS SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-
 
 #### ANALYSIS SUBTROPICS ####
 # 25th percentile 
@@ -1010,72 +1014,6 @@ sbtrp_b_slastd_n <- sbtrp_joined_STD$butler_std
                                   add.contour=TRUE, main = "Subtropics",
                                   xlab="Cardamom", 
                                   ylab="Butler"))
-## stats: r2, rmse, bias ----
-# sla mean 
-sbtrp_sla_stat <- sbtrp_joined_SLA %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sbtrp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)),
-         bias = bias(butler, new_b_val))
-# r2 result for mean sla in subtropics: 0.1372143
-# plotting rmse for each data point sla mean
-(sbtrp_sla_rmse_plot <- ggplot(sbtrp_sla_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("SUBTROPICS Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-# sla stdev 
-sbtrp_std_stat <- sbtrp_joined_STD %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sbtrp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)),
-         bias = bias(butler_std, new_bstd_val))
-# r2 result for sla stdev in subtropics: 0.01140631
-
-# plotting rmse for each data point stdev
-(sbtrp_slastd_rmse_plot <- ggplot(sbtrp_std_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("SUBTROPICS SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-
-
 #### ANALYSIS TEMPERATE ####
 # heatscatter ----
   #sla mean
@@ -1096,72 +1034,6 @@ tmp_slastd_b_n <- tmp_slastd$butler_std
                                   add.contour=TRUE, main = "Temperate",
                                   xlab="", 
                                   ylab=""))
-## stats: R2 ----
-# sla mean
-tmp_sla_stat <- tmp_sla %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         tmp_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)),
-         bias = bias(butler, new_b_val))
-# result of r2 for temperate sla mean: 0.00640377
-# plotting rmse for each data point: sla mean
-(tmp_sla_rmse_plot <- ggplot(tmp_sla_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TEMPERATE Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-# sla stdev
-tmp_std_stat <- tmp_slastd %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         tmp_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)),
-         bias = bias(butler_std, new_bstd_val))
-# results for r2 in temperate for sla stdev: 0.0001560524
-
-# plotting rmse for each data point
-(tmp_slastd_rmse_plot <- ggplot(tmp_std_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("TEMPERATE SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-
-
 #### ANALYSIS POLES ####
 # heatscatter ----
   # sla mean 
@@ -1181,68 +1053,6 @@ pl_slastd_b_n <- plN_std$butler_std
                                   add.contour=TRUE, main = "N Pole",
                                   xlab="Cardamom", 
                                   ylab=""))
-## stats r2, rmse, bias ----
-# sla mean
-pl_stat <- plN %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         pl_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         rmse_av = Metrics::rmse(butler, new_b_val), # this is the mean of the mean values
-         rmse_row = sqrt(Metrics::se(butler, new_b_val)), # square root of squared error - each row is already a mean value
-         bias = Metrics::bias(butler, new_b_val)) 
-# plotting rmse for each data point: sla mean
-(pl_sla_rmse_plot <- ggplot(pl_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("N POLE Mean SLA RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
-# sla stdev
-pl_std_stat <- plN_std %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         pl_sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         rmse_av = Metrics::rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(Metrics::se(butler_std, new_bstd_val)),
-         bias = bias(butler_std, new_bstd_val))
-
-  # plotting rmse for each data point: stdev 
-(pl_slastd_rmse_plot <- ggplot(pl_std_stat, aes(x,y,color=rmse_row))+
-    geom_jitter(stat = "identity")+
-    theme_classic()+
-    scale_color_gradient(low = "yellow", high = "darkred")+
-    ylab("Latitude\n")+
-    xlab("\nLongitude")+
-    labs(color=" ")+
-    ggtitle("N POLE SLA StDev RMSE\n")+
-    theme(plot.title = element_text(face = "bold")))
-
 # dev.off----
 dev.off()
 
@@ -1308,40 +1118,6 @@ masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
 masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
 #plot(masked_taiga_slastd_c[[1]])
 #plot(masked_taiga_slastd_b[[1]])
-## stippling for taiga ----
-# 25th percentile 
-taiga_25pc <- raster::mask(cardamom_25th, boreal_f_taiga)
-#plot(taiga_25pc[[1]])
-# 75th percentile
-taiga_75pc <- raster::mask(cardamom_75th, boreal_f_taiga)
-# 95th percentile 
-taiga_95pc <- raster::mask(cardamom_95th, boreal_f_taiga)
-## stippling for taiga
-stip_locs_taiga <- (masked_taiga_sla_b[[1]] >= taiga_25pc[[1]])*
-  (masked_taiga_sla_b[[1]]<=taiga_75pc[[1]])
-stip_locs_taiga <- rasterToPoints(stip_locs_taiga)
-stip_locs_taiga <- stip_locs_taiga[stip_locs_taiga[, "layer"] == 1,]
-#(butler_stippling <- levelplot(butler_sla[[1]]))
-stip_locs_taiga95 <- (masked_taiga_sla_b[[1]]>=taiga_25pc[[1]])*
-  (masked_taiga_sla_b[[1]]<=taiga_95pc[[1]])
-stip_locs_taiga95 <- rasterToPoints(stip_locs_taiga95)
-stip_locs_taiga95 <- stip_locs_taiga95[stip_locs_taiga95[, "layer"] ==1,]
-
-diff_pc <- as.data.frame(stip_locs_taiga95) %>% 
-  setdiff(as.data.frame(stip_locs_taiga)) %>% 
-  as.matrix
-#taiga.m <- rasterToPoints(masked_taiga_sla_b)
-
-png("./figures/stippling_world.png", width = 40, height = 25, 
-    units = "cm", res = 500)
-plot(masked_taiga_sla_b, asp = NA, col = rev(brewer.pal(10, "RdYlBu")),
-     xlab="\nLongitude", ylab="Latitude", 
-     legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
-                        side=4, font=1, line=2.3),
-     main="Butler Sla Mean (stippling)\n")
-points(stip_locs_taiga, pch = 18, cex=0.5)
-points(diff_pc, pch = 23, cex = 0.7, col = "darkgreen", bg="green")
-dev.off()
 # 2) mask raster tundra biome ----
 # sla mean 
 masked_tundra_sla_c <- raster::mask(cardamom_sla, tundra)
@@ -1531,184 +1307,103 @@ mask_trp_sbtrp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
 
 
 
+
 #### VISUAL AND STAT ANALYSIS BY BIOME ####
 # first thing - turning all masked rasterlayers to dataframes ----
-  # sla mean
-# 1) taiga
-taiga_sla_c <- raster::as.data.frame(masked_taiga_sla_c, xy = TRUE)
-taiga_sla_b <- raster::as.data.frame(masked_taiga_sla_b, xy = TRUE)
-# 2) tundra forest boreal 
-tundra_sla_c <- raster::as.data.frame(masked_tundra_sla_c, xy = TRUE)
-tundra_sla_b <- raster::as.data.frame(masked_tundra_sla_b, xy = TRUE)
-# 3) temperate coniferous forest 
-tmp_conif_sla_c <- raster::as.data.frame(mask_temp_conif_sla_c, xy = TRUE)
-tmp_conif_sla_b <- raster::as.data.frame(mask_temp_conif_sla_b, xy = TRUE)
-# 4) temperate broad and mixed forest 
-tmp_broad_mix_sla_c <- raster::as.data.frame(mask_temp_broad_mix_sla_c,
-                                             xy = TRUE)
-tmp_broad_mix_sla_b <- raster::as.data.frame(mask_temp_broad_mix_sla_b,
-                                             xy = TRUE)
-# 5) tropical and subtropical dry broadleaf
-trpsbtrp_dry_broad_sla_c <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_sla_c,
-                                                   xy = TRUE)
-trpsbtrp_dry_broad_sla_b <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_sla_b,
-                                                  xy = TRUE)
-# 6) tropical and subtropical conif forest
-trpsbtrp_conif_sla_c <- raster::as.data.frame(mask_trp_sbtrp_conif_sla_c,
-                                              xy = TRUE)
-trpsbtrp_conif_sla_b <- raster::as.data.frame(mask_trp_sbtrp_conif_sla_b,
-                                              xy = TRUE)
-# 7) tropical subtropical moist broadleaf biome
-trpsbtrp_moist_broad_sla_c <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_sla_c,
-                                                    xy = TRUE)
-trpsbtrp_moist_broad_sla_b <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_sla_b,
-                                                    xy = TRUE)
-# 8) mediterranean forests, woodlands, scrub biome
-med_f_w_scr_sla_c <- raster::as.data.frame(mask_med_f_w_scr_sla_c, 
-                                           xy = TRUE)
-med_f_w_scr_sla_b <- raster::as.data.frame(mask_med_f_w_scr_sla_b,
-                                           xy = TRUE)
-# 9) desertic and xeric scrubland
-des_x_scr_sla_c <- raster::as.data.frame(mask_des_x_scr_sla_c, xy = TRUE)
-des_x_scr_sla_b <- raster::as.data.frame(mask_des_x_scr_sla_b, xy = TRUE)
-# 10) temperate grassland, savanna, shrubland
-temp_grass_sav_shr_sla_c <- raster::as.data.frame(mask_temp_grass_sav_shr_sla_c,
-                                                  xy = TRUE)
-temp_grass_sav_shr_sla_b <- raster::as.data.frame(mask_temp_grass_sav_shr_sla_b,
-                                                  xy = TRUE)
-# 11) montane grassland and shrubland
-mont_grass_shr_sla_c <- raster::as.data.frame(mask_mont_grass_shr_sla_c, 
-                                              xy = TRUE)
-mont_grass_shr_sla_b <- raster::as.data.frame(mask_mont_grass_shr_sla_b,
-                                              xy = TRUE)
-# 12) mangroves
-mangr_sla_c <- raster::as.data.frame(mask_mangroves_sla_c, xy = TRUE)
-mangr_sla_b <- raster::as.data.frame(mask_mangroves_sla_b, xy = TRUE)
-# 13) flooded grassland and savanna
-flo_grass_sav_sla_c <- raster::as.data.frame(mask_flo_grass_sav_sla_c,
-                                             xy = TRUE)
-flo_grass_sav_sla_b <- raster::as.data.frame(mask_flo_grass_sav_sla_b, 
-                                             xy = TRUE)
-# 14) tropical and subtropical grassland, savanna, shrubland
-trpsbtrp_grass_sav_shr_sla_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_sla_c,
-                                                       xy = TRUE)
-trpsbtrp_grass_sav_shr_sla_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_sla_b,
-                                                      xy = TRUE)
+mask.to.df <- function(x){
+  new.list <- list()
+  for (i in 1:length(x)){
+    df <- raster::as.data.frame(x[[i]], xy =TRUE)
+    name.df <- paste("df",names(x)[i],sep = ".")
+    new.list[[name.df]] <- df
+  }
+  new.list
+}
+  # sla mean - butler
+biome.butler.raster.list <- list(taiga.b=masked_taiga_sla_b,
+                          tundra.b= masked_tundra_sla_b,
+                          des.b = mask_des_x_scr_sla_b,
+                          trp.g.b = mask_trp_sbtrp_grass_sav_shr_sla_b,
+                          temp.c.b=mask_temp_conif_sla_b,
+                          med.b=mask_med_f_w_scr_sla_b,
+                          mang.b=mask_mangroves_sla_b,
+                          temp.bm.b=mask_temp_broad_mix_sla_b,
+                          trp.c.b=mask_trp_sbtrp_conif_sla_b,
+                          flo.g.b=mask_flo_grass_sav_sla_b,
+                          mont.g.b=mask_mont_grass_shr_sla_b,
+                          trp.db.b=mask_trp_sbtrp_dry_broad_sla_b,
+                          trp.mb.b=mask_trp_sbtrp_moist_broad_sla_b,
+                          temp.g.b=mask_temp_grass_sav_shr_sla_b)
 
-# sla stdev
-# 1) taiga
-taiga_slastd_c <- raster::as.data.frame(masked_taiga_slastd_c, xy = TRUE)
-taiga_slastd_b <- raster::as.data.frame(masked_taiga_slastd_b, xy = TRUE)
-# 2) tundra forest boreal 
-tundra_slastd_c <- raster::as.data.frame(masked_tundra_slastd_c, xy = TRUE)
-tundra_slastd_b <- raster::as.data.frame(masked_tundra_slastd_b, xy = TRUE)
-# 3) temperate coniferous forest 
-tmp_conif_slastd_c <- raster::as.data.frame(mask_temp_conif_slastd_c, 
-                                            xy = TRUE)
-tmp_conif_slastd_b <- raster::as.data.frame(mask_temp_conif_slastd_b,
-                                            xy = TRUE)
-# 4) temperate broad and mixed forest 
-tmp_broad_mix_slastd_c <- raster::as.data.frame(mask_temp_broad_mix_slastd_c,
-                                             xy = TRUE)
-tmp_broad_mix_slastd_b <- raster::as.data.frame(mask_temp_broad_mix_slastd_b,
-                                             xy = TRUE)
-# 5) tropical and subtropical dry broadleaf
-trpsbtrp_dry_broad_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_slastd_c,
-                                                  xy = TRUE)
-trpsbtrp_dry_broad_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_dry_broad_slastd_b,
-                                                  xy = TRUE)
-# 6) tropical and subtropical conif forest
-trpsbtrp_conif_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_conif_slastd_c,
-                                              xy = TRUE)
-trpsbtrp_conif_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_conif_slastd_b,
-                                              xy = TRUE)
-# 7) tropical subtropical moist broadleaf biome
-trpsbtrp_moist_broad_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_slastd_c,
-                                                    xy = TRUE)
-trpsbtrp_moist_broad_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_moist_broad_slastd_b,
-                                                    xy = TRUE)
-# 8) mediterranean forests, woodlands, scrub biome
-med_f_w_scr_slastd_c <- raster::as.data.frame(mask_med_f_w_scr_slastd_c, 
-                                           xy = TRUE)
-med_f_w_scr_slastd_b <- raster::as.data.frame(mask_med_f_w_scr_slastd_b,
-                                           xy = TRUE)
-# 9) desertic and xeric scrubland
-des_x_scr_slastd_c <- raster::as.data.frame(mask_des_x_scr_slastd_c, xy = TRUE)
-des_x_scr_slastd_b <- raster::as.data.frame(mask_des_x_scr_slastd_b, xy = TRUE)
-# 10) temperate grassland, savanna, shrubland
-temp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_c,
-                                                  xy = TRUE)
-temp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_temp_grass_sav_shr_slastd_b,
-                                                  xy = TRUE)
-# 11) montane grassland and shrubland
-mont_grass_shr_slastd_c <- raster::as.data.frame(mask_mont_grass_shr_slastd_c, 
-                                              xy = TRUE)
-mont_grass_shr_slastd_b <- raster::as.data.frame(mask_mont_grass_shr_slastd_b,
-                                              xy = TRUE)
-# 12) mangroves
-mangr_slastd_c <- raster::as.data.frame(mask_mangroves_slastd_c, xy = TRUE)
-mangr_slastd_b <- raster::as.data.frame(mask_mangroves_slastd_b, xy = TRUE)
-# 13) flooded grassland and savanna
-flo_grass_sav_slastd_c <- raster::as.data.frame(mask_flo_grass_sav_slastd_c,
-                                             xy = TRUE)
-flo_grass_sav_slastd_b <- raster::as.data.frame(mask_flo_grass_sav_slastd_b, 
-                                             xy = TRUE)
-# 14) tropical and subtropical grassland, savanna, shrubland
-trpsbtrp_grass_sav_shr_slastd_c <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_slastd_c,
-                                                      xy = TRUE)
-trpsbtrp_grass_sav_shr_slastd_b <- raster::as.data.frame(mask_trp_sbtrp_grass_sav_shr_slastd_b,
-                                                      xy = TRUE)
+biome.butler.df <- mask.to.df(biome.butler.raster.list)
 
+  # sla mean - cardamom
+biome.cardamom.raster.list <- list(taiga.c=masked_taiga_sla_c,
+                                 tundra.c= masked_tundra_sla_c,
+                                 des.c = mask_des_x_scr_sla_c,
+                                 trp.g.c = mask_trp_sbtrp_grass_sav_shr_sla_c,
+                                 temp.c.c=mask_temp_conif_sla_c,
+                                 med.c=mask_med_f_w_scr_sla_c,
+                                 mang.c=mask_mangroves_sla_c,
+                                 temp.bm.c=mask_temp_broad_mix_sla_c,
+                                 trp.c.c=mask_trp_sbtrp_conif_sla_c,
+                                 flo.g.c=mask_flo_grass_sav_sla_c,
+                                 mont.g.c=mask_mont_grass_shr_sla_c,
+                                 trp.db.c=mask_trp_sbtrp_dry_broad_sla_c,
+                                 trp.mb.c=mask_trp_sbtrp_moist_broad_sla_c,
+                                 temp.g.c=mask_temp_grass_sav_shr_sla_c)
+
+biome.cardamom.df <- mask.to.df(biome.cardamom.raster.list)
+
+  # sla stdev - butler 
+biome.cardamom.raster.std <- list(taiga.c=masked_taiga_slastd_c,
+                                   tundra.c= masked_tundra_slastd_c,
+                                   des.c = mask_des_x_scr_slastd_c,
+                                   trp.g.c = mask_trp_sbtrp_grass_sav_shr_slastd_c,
+                                   temp.c.c=mask_temp_conif_slastd_c,
+                                   med.c=mask_med_f_w_scr_slastd_c,
+                                   mang.c=mask_mangroves_slastd_c,
+                                   temp.bm.c=mask_temp_broad_mix_slastd_c,
+                                   trp.c.c=mask_trp_sbtrp_conif_slastd_c,
+                                   flo.g.c=mask_flo_grass_sav_slastd_c,
+                                   mont.g.c=mask_mont_grass_shr_slastd_c,
+                                   trp.db.c=mask_trp_sbtrp_dry_broad_slastd_c,
+                                   trp.mb.c=mask_trp_sbtrp_moist_broad_slastd_c,
+                                   temp.g.c=mask_temp_grass_sav_shr_slastd_c)
+
+biome.cardamom.df.std <- mask.to.df(biome.cardamom.raster.std)
+
+  # sla stdev - cardamom 
+biome.butler.raster.std <- list(taiga.b=masked_taiga_slastd_b,
+                                tundra.b= masked_tundra_slastd_b,
+                                des.b = mask_des_x_scr_slastd_b,
+                                trp.g.b = mask_trp_sbtrp_grass_sav_shr_slastd_b,
+                                temp.c.b=mask_temp_conif_slastd_b,
+                                med.b=mask_med_f_w_scr_slastd_b,
+                                mang.b=mask_mangroves_slastd_b,
+                                temp.bm.b=mask_temp_broad_mix_slastd_b,
+                                trp.c.b=mask_trp_sbtrp_conif_slastd_b,
+                                flo.g.b=mask_flo_grass_sav_slastd_b,
+                                mont.g.b=mask_mont_grass_shr_slastd_b,
+                                trp.db.b=mask_trp_sbtrp_dry_broad_slastd_b,
+                                trp.mb.b=mask_trp_sbtrp_moist_broad_slastd_b,
+                                temp.g.b=mask_temp_grass_sav_shr_slastd_b)
+biome.butler.df.std <- mask.to.df(biome.butler.raster.std)
 
 # joining dataframes cardamom + butler ----
-  # sla mean
-j_taiga_sla <- left_join(taiga_sla_c, taiga_sla_b) 
-j_tundra_sla <- left_join(tundra_sla_c, tundra_sla_b) 
-j_tmp_c_sla <- left_join(tmp_conif_sla_c, tmp_conif_sla_b) 
-j_tmp_b_m_sla <- left_join(tmp_broad_mix_sla_c, tmp_broad_mix_sla_b) 
-j_trp_sbtrp_d_b_sla <- left_join(trpsbtrp_dry_broad_sla_c, 
-                                 trpsbtrp_dry_broad_sla_b) 
-j_trp_sbtrp_c_sla <- left_join(trpsbtrp_conif_sla_c, 
-                               trpsbtrp_conif_sla_b) 
-j_trp_sbtrp_m_br_sla <- left_join(trpsbtrp_moist_broad_sla_c, 
-                                  trpsbtrp_moist_broad_sla_b) 
-j_med_f_sla <- left_join(med_f_w_scr_sla_c, med_f_w_scr_sla_b) 
-j_des_x_s_sla <- left_join(des_x_scr_sla_c, des_x_scr_sla_b) 
-j_temp_g_s_sh_sla <- left_join(temp_grass_sav_shr_sla_c, 
-                               temp_grass_sav_shr_sla_b) 
-j_mont_g_shr_sla <- left_join(mont_grass_shr_sla_c, 
-                              mont_grass_shr_sla_b)
-j_mangr_sla <- left_join(mangr_sla_c, mangr_sla_b)
-j_flo_g_sav_sla <- left_join(flo_grass_sav_sla_c, flo_grass_sav_sla_b) 
-  # joined flooded grass and savanna
-j_trpsbtrp_g_sav_shr_sla <- left_join(trpsbtrp_grass_sav_shr_sla_c,
-                                  trpsbtrp_grass_sav_shr_sla_b) 
-## --- ##
-  # sla stdev
-j_taiga_slastd <- left_join(taiga_slastd_c, taiga_slastd_b)
-j_tundra_slastd <- left_join(tundra_slastd_c, tundra_slastd_b)
-j_tmp_c_slastd <- left_join(tmp_conif_slastd_c, tmp_conif_slastd_b)
-j_tmp_b_m_slastd <- left_join(tmp_broad_mix_slastd_c,
-                           tmp_broad_mix_slastd_b) 
-j_trp_sbtrp_d_b_slastd <- left_join(trpsbtrp_dry_broad_slastd_c,
-                                    trpsbtrp_dry_broad_slastd_b)
-j_trp_sbtrp_c_slastd <- left_join(trpsbtrp_conif_slastd_c,
-                                  trpsbtrp_conif_slastd_b)
-j_trp_sbtrp_m_br_slastd <- left_join(trpsbtrp_moist_broad_slastd_c,
-                                     trpsbtrp_moist_broad_slastd_b)
-j_med_f_slastd <- left_join(med_f_w_scr_slastd_c,
-                            med_f_w_scr_slastd_b)
-j_des_x_s_slastd <- left_join(des_x_scr_slastd_c, des_x_scr_slastd_b)
-j_temp_g_s_sh_slastd <- left_join(temp_grass_sav_shr_slastd_c, 
-                                  temp_grass_sav_shr_slastd_b)
-j_mont_g_shr_slastd <- left_join(mont_grass_shr_slastd_c, 
-                                 mont_grass_shr_slastd_b)
-j_mangr_slastd <- left_join(mangr_slastd_c, mangr_slastd_b)
-j_flo_g_sav_slastd <- left_join(flo_grass_sav_slastd_c,
-                                flo_grass_sav_slastd_b)
-j_trpsbtrp_g_sav_shr_slastd <- left_join(trpsbtrp_grass_sav_shr_slastd_c,
-                                         trpsbtrp_grass_sav_shr_slastd_b)
+join.f <- function(x,y,na.omit=TRUE){
+  new.list <- list()
+  join <- mapply(left_join, x, y,SIMPLIFY = FALSE)
+  join <- lapply(join, na.omit)
+  name.df <- names(x)[i]
+  new.list[[name.df]] <- join
+}
 
+# sla mean
+j.biome.sla <- join.f(biome.cardamom.df,biome.butler.df, na.omit = TRUE)
+
+# sla stdev 
+j.biome.slastd <- join.f(biome.cardamom.df.std,biome.butler.df.std)
 
 
 #### PERCENTAGE OVERLAP DENSITY PLOTS ####
@@ -1782,68 +1477,133 @@ for (i in 1:length(biome.std.list)){
 }
 
 
-#### ATTEMPT TO AUTOMATISE THE STIPPLING BY BIOME ####
+
+#### STIPPLING BY BIOME ####
 # list of masks by biome only for butler 
-biome.raster.list <- list(m.taiga.b=masked_taiga_sla_b,
-                          m.tundra.b= masked_tundra_sla_b,
-                          m.des.b = mask_des_x_scr_sla_b,
-                          m.trp.g.b = mask_trp_sbtrp_grass_sav_shr_sla_b,
-                          m.temp.c.b=mask_temp_conif_sla_b,
-                          m.med.b=mask_med_f_w_scr_sla_b,
-                          m.mang.b=mask_mangroves_sla_b,
-                          m.temp.bm.b=mask_temp_broad_mix_sla_b,
-                          m.trp.c.b=mask_trp_sbtrp_conif_sla_b,
-                          m.flo.g.b=mask_flo_grass_sav_sla_b,
-                          m.mont.g.b=mask_mont_grass_shr_sla_b,
-                          m.trp.db.b=mask_trp_sbtrp_dry_broad_sla_b,
-                          m.trp.mb.b=mask_trp_sbtrp_moist_broad_sla_b,
-                          m.temp.g.b=mask_temp_grass_sav_shr_sla_b)
-biome.stp.25 <- list()
-biome.stp.75 <-list()
-biome.stp.95 <- list()
-length.biomes <- length(names(biome.raster.list))
-stp.locs.75 <- list()
-stp.locs.95<- list()
-diff.stp.locs <- list()
-for (i in 1:length(biome.raster.list)){
-  stp.25 <- raster::mask(cardamom_25th, biome.raster.list[[i]])
-  stp.75 <- raster::mask(cardamom_75th, biome.raster.list[[i]])
-  stp.95 <- raster::mask(cardamom_95th, biome.raster.list[[i]])
-  stp.name25 <- paste("stp25", names(biome.raster.list)[i],sep = ".")
-  stp.name75 <- paste("stp75", names(biome.raster.list)[i],sep = ".")
-  stp.name95 <- paste("stp95",names(biome.raster.list)[i],sep=".")
-  biome.stp.25[[stp.name25]] <- stp.25
-  biome.stp.75[[stp.name75]] <- stp.75
-  biome.stp.95[[stp.name95]] <- stp.95
-  stp.locs.75.calc <- (biome.raster.list[[i]]>=biome.stp.25[[i]])*
-    (biome.raster.list[[i]]<= biome.stp.75[[i]])
-  stp.locs.95.calc <- (biome.raster.list[[i]]>=biome.stp.25[[i]])*
-    (biome.raster.list[[i]]<= biome.stp.95[[i]])
+
+# list of masks by biome only for butler (std)
+biome.std.raster.list <- list(m.std.taiga.b = masked_taiga_slastd_b,
+                            m.std.tundra.b = masked_tundra_slastd_b,
+                            m.std.des.b = mask_des_x_scr_slastd_b,
+                            m.std.trp.g.b = mask_trp_sbtrp_grass_sav_shr_slastd_b,
+                            m.std.temp.c.b = mask_temp_conif_slastd_b,
+                            m.std.med.b = mask_med_f_w_scr_slastd_b,
+                            m.std.mangr.b = mask_mangroves_slastd_b,
+                            m.std.temp.bm.b = mask_temp_broad_mix_slastd_b,
+                            m.std.trp.c.b = mask_trp_sbtrp_conif_slastd_b,
+                            m.std.flo.g.b = mask_flo_grass_sav_slastd_b,
+                            m.std.mont.g.b = mask_mont_grass_shr_slastd_b,
+                            m.std.trp.db.b = mask_trp_sbtrp_dry_broad_slastd_b,
+                            m.std.trp.mb.b = mask_trp_sbtrp_moist_broad_slastd_b,
+                            m.std.temp.g.b = mask_temp_grass_sav_shr_slastd_b)
+
+## creation of function to do the automatisation of stippling by biome
+stippling.biomes <- function(x){
+  biome.stp.25 <- list()
+  biome.stp.75 <-list()
+  biome.stp.95 <- list()
+  stp.locs.75 <- list()
+  stp.locs.95<- list()
+  diff.stp.locs <- list()
+  for (i in 1:length(x)){
+    stp.25 <- raster::mask(cardamom_25th, x[[i]])
+    stp.75 <- raster::mask(cardamom_75th, x[[i]])
+    stp.95 <- raster::mask(cardamom_95th, x[[i]])
+    stp.name25 <- paste("stp25", names(x)[i],sep = ".")
+    stp.name75 <- paste("stp75", names(x)[i],sep = ".")
+    stp.name95 <- paste("stp95",names(x)[i],sep=".")
+    biome.stp.25[[stp.name25]] <- stp.25
+    biome.stp.75[[stp.name75]] <- stp.75
+   biome.stp.95[[stp.name95]] <- stp.95
+   stp.locs.75.calc <- (x[[i]]>=biome.stp.25[[i]])*2
+    (x[[i]]<= biome.stp.75[[i]])
+  stp.locs.95.calc <- (x[[i]]>=biome.stp.25[[i]])*
+    (x[[i]]<= biome.stp.95[[i]])
   stp.locs.75.p <- rasterToPoints(stp.locs.75.calc)
-  stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[,"layer"]==1,]
   stp.locs.95.p <- rasterToPoints(stp.locs.95.calc)
-  stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[,"layer"]==1,]
-  stp.locs.75n <- paste("stp.locs",names(biome.raster.list)[i],"75",sep = ".")
-  stp.locs.95n <- paste("stp.locs",names(biome.raster.list)[i],"95",sep = ".")
-  stp.locs.75.c.l[[stp.locs.75n]] <- stp.locs.75.calc
-  stp.locs.95.c.l[[stp.locs.75n]] <- stp.locs.95.calc
+  stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[, "layer"] == 1,]
+  stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[, "layer"] == 1,]
+  stp.locs.75n <- paste("stp.locs",names(x)[i],"75",sep = ".")
+  stp.locs.95n <- paste("stp.locs",names(x)[i],"95",sep = ".")
   stp.locs.75[[stp.locs.75n]]<- stp.locs.75.p
   stp.locs.95[[stp.locs.95n]]<- stp.locs.95.p
   diff.stp.locs.calc <- as.data.frame(stp.locs.95[[i]]) %>% 
     setdiff(as.data.frame(stp.locs.75[[i]])) %>% 
-    as.matrix  
-  diff.stp.locs.n <- paste("diff",names(biome.raster.list)[i],sep = ".")
-  diff.stp.locs[[diff.stp.locs.n]] <- diff.stp.locs.calc
-  png(paste("./figures/stippling",names(biome.raster.list)[i],".png",sep = "."),
-      width = 50,height = 30,units = "cm",res = 500)
-  plot(biome.raster.list[[i]],asp=NA,col=rev(brewer.pal(10,"RdYlBu")),
+    as.matrix 
+  diff.stp.locs.n <- paste("diff",names(x)[i],sep = ".")
+    diff.stp.locs[[diff.stp.locs.n]] <- diff.stp.locs.calc
+  png(paste("./figures/stippling",names(x)[i],".png",sep = "."),
+      width = 50,height = 25,units = "cm",res = 500)
+  plot(x[[i]],asp=NA,col=rev(brewer.pal(10,"RdYlBu")),
        legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
                           side=4, font=1, line=2.3),
        main="Butler Sla Mean (stippling)\n")
   points(stp.locs.75[[i]],pch=18,cex=0.8)
-  points(diff.stp.locs[[i]],pch=23,cex=0.9,col="darkgreen",bg="green")
+  points(diff.stp.locs[[i]],pch=23,cex=0.9,col="darkgreen",bg="green")}
   dev.off()
 }
+
+### note ###
+# there is something wrong when i try to apply this function to stdev, 
+# for some reason it seems that the format of one particular biome becomes 
+# different from others, thus doesnt work and loops stops there once it reaches 
+# that biome - m.std.trp.db.b (the tropics-subtropics dry broadleaf biome)
+# if have time, can check better and try to fix it
+# for the time being, i've copied the code to match the std, without the 
+# function, and without the code for finding diff between 25-75pc and 25-95pc
+# since stdev doesnt have points that go beyond the 75, as i had found out from 
+# the observation of global stippling 
+###---###
+
+# stippling biomes for sla mean
+stippling.biomes(biome.raster.list)
+
+# stippling biomes for sla stdev
+biome.stp.25 <- list()
+biome.stp.75 <-list()
+biome.stp.95 <- list()
+stp.locs.75 <- list()
+stp.locs.95<- list()
+diff.stp.locs <- list()
+for (i in 1:length(biome.std.raster.list)){
+    stp.25 <- raster::mask(cardamom_25th, biome.std.raster.list[[i]])
+    stp.75 <- raster::mask(cardamom_75th, biome.std.raster.list[[i]])
+    stp.95 <- raster::mask(cardamom_95th, biome.std.raster.list[[i]])
+    stp.name25 <- paste("stp25", names(biome.std.raster.list)[i],sep = ".")
+    stp.name75 <- paste("stp75", names(biome.std.raster.list)[i],sep = ".")
+    stp.name95 <- paste("stp95",names(biome.std.raster.list)[i],sep=".")
+    biome.stp.25[[stp.name25]] <- stp.25
+    biome.stp.75[[stp.name75]] <- stp.75
+    biome.stp.95[[stp.name95]] <- stp.95
+    stp.locs.75.calc <- (biome.std.raster.list[[i]]>=biome.stp.25[[i]])*
+      (biome.std.raster.list[[i]]<= biome.stp.75[[i]])
+    stp.locs.95.calc <- (biome.std.raster.list[[i]]>=biome.stp.25[[i]])*
+      (biome.std.raster.list[[i]]<= biome.stp.95[[i]])
+    stp.locs.75.p <- rasterToPoints(stp.locs.75.calc)
+    stp.locs.95.p <- rasterToPoints(stp.locs.95.calc)
+    stp.locs.75.p <- stp.locs.75.p[stp.locs.75.p[, "layer"] == 1,]
+    stp.locs.95.p <- stp.locs.95.p[stp.locs.95.p[, "layer"] == 1,]
+    stp.locs.75n <- paste("stp.locs",names(biome.std.raster.list)[i],"75",
+                          sep = ".")
+    stp.locs.95n <- paste("stp.locs",names(biome.std.raster.list)[i],"95",
+                          sep = ".")
+    stp.locs.75[[stp.locs.75n]]<- stp.locs.75.p
+    stp.locs.95[[stp.locs.95n]]<- stp.locs.95.p
+    png(paste("./figures/stippling",names(biome.std.raster.list)[i],".png",
+              sep = "."),
+        width = 50,height = 25,units = "cm",res = 500)
+    plot(biome.std.raster.list[[i]],asp=NA,col=rev(brewer.pal(10,"RdYlBu")),
+         legend.args = list(text="\n\nSLA Mean (m2.kg-1)", 
+                            side=4, font=1, line=2.3),
+         main="Butler Sla Mean (stippling)\n")
+    points(stp.locs.75[[i]],pch=18,cex=0.8)
+    dev.off()
+}
+
+
+
+
+
 
 # HEATSCATTER SLA MEAN MAJ BIOMES ----
 png("./figures/panel_heatsc_biome_sla.png", width = 50, height = 30,
@@ -2030,389 +1790,60 @@ dev.off()
 
 
 # STATS MAJ BIOMES: r2, rmse, bias ----
-# 1) taiga ----
+
+# first thing - renaming sla and specific.leaf.area parameters to cardamom and
+# butler respectively
+
+  # for sla mean
+for (i in 1:length(j.biome.sla)){
+  colnames(j.biome.sla[[i]]) <- sub("sla","cardamom",colnames(j.biome.sla[[i]]))
+  colnames(j.biome.sla[[i]]) <- sub("specific.leaf.area","butler",
+                                    colnames(j.biome.sla[[i]]))
+}
+  # for sla stdev
+for (i in 1:length(j.biome.slastd)){
+  colnames(j.biome.slastd[[i]]) <- sub("Standard_Deviation","cardamom",
+                                       colnames(j.biome.slastd[[i]]))
+  colnames(j.biome.slastd[[i]]) <- sub("specific.leaf.area","butler",
+                                       colnames(j.biome.slastd[[i]]))
+}
+
+# creating function to perform calculations of stats for each biome
+stats.f <- function(x){
+  lapply(x,function(df){
+    df$c_mean <- mean(df$cardamom)      
+    df$b_mean <- mean(df$butler)
+    df$diff_butler <- df$butler-df$b_mean
+    df$diff_butler2<- df$diff_butler^2
+    df$sum_diff_butler2 <-sum(df$diff_butler2)
+    df$slope_bf <-sum((df$cardamom-df$c_mean)*(df$butler-df$b_mean))/
+      sum((df$cardamom-df$c_mean)^2)
+    df$b_intercept <- df$b_mean - (df$slope_bf*df$c_mean)
+    df$new_b_val <- df$b_intercept + (df$slope_bf*df$cardamom)
+    df$dist_mean_new_b <- df$new_b_val - df$b_mean
+    df$sqrd_dist_b <- df$dist_mean_new_b^2
+    df$sum_sqrd_dist_b <- sum(df$sqrd_dist_b)
+    df$sla_r2 <- df$sum_sqrd_dist_b / df$sum_diff_butler2
+    df$bias_av <- bias(df$butler, df$cardamom)
+    df$bias_row <- df$butler - df$cardamom
+    df$rmse_av <- rmse(df$butler, df$cardamom)
+    df$rmse_row <- sqrt(se(df$butler, df$cardamom))
+    df
+  })
+}
+
   # sla mean 
-taiga_sla_stat <- j_taiga_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = Metrics::bias(butler,new_b_val),
-         rmse_av = Metrics::rmse(butler, new_b_val),
-         rmse_row = sqrt(Metrics::se(butler, new_b_val)))
-
-# visually representing the results 
-# let's turn the dataframe into an nc file for plotting like raster data
-par(mfrow = c(1,1))
-
-xy <- taiga_sla_stat[,c(1,2)]
-taiga_sla_rmse <- taiga_sla_stat %>%
-  dplyr::select(x,y,rmse_row)
-spatial_taiga <- SpatialPointsDataFrame(coords = xy, data = taiga_sla_rmse,
-                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
-my.sf.point <- st_as_sf(x = taiga_sla_rmse, 
-                        coords = c("x", "y"),
-                        crs = "+proj=longlat +datum=WGS84")
-plot(my.sf.point)
-?SpatialPointsDataFrame
-# interactive map:
-#library(mapview)
-#mapview(my.sf.point)
-
-install.packages("ggthemes")
-library(ggthemes)
-# convert to sp object if needed
-my.sp.point <- as(my.sf.point, "Spatial")
-plot(my.sp.point[[1]])
-(taiga.sla.rmse.map <- ggplot(taiga_sla_rmse, aes(x = x, y = y, color = rmse_row)) +
-    borders("world", ylim = c(50, 100), colour = "gray40", 
-            fill = "gray40", size = 0.3) +
-    # get a high resolution map of the world
-    theme_map() +
-    geom_jitter(alpha = 0.8, size = 2)+
-    scale_color_gradientn(colors = terrain.colors(5)))
-
-# sla stdev
-taiga_slastd_stat <- j_taiga_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
-plot(taiga_sla_stat$rmse_row)
-
-# 2) tundra ----
-  # sla mean 
-tundra_sla_stat <- j_tundra_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2, 
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = rmse(butler, new_b_val))
-
-  # sla stdev 
-tundra_slastd_stat <- j_tundra_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
-
-# 3) temp conif forest ----
-  # sla mean
-temp_con_sla_stat <- j_tmp_c_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
-
-  # sla stdev 
-temp_con_slastd_stat <- j_tmp_c_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
-
-# 4) temp broad mix forest ----
-  # sla mean 
-temp_b_m_sla_stat <- j_tmp_b_m_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
+biome.sla.stats <- stats.f(j.biome.sla)
 
   # sla stdev
-temp_b_m_slastd_stat <- j_tmp_b_m_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
+biome.slastd.stats <- stats.f(j.biome.slastd)
 
-# 5) tropical and subtropical dry broadleaf ----
-  # sla mean 
-trpsbtrp_d_b_sla_stat <- j_trp_sbtrp_d_b_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
+###############################################
+# stat analysis by biome in diff continents        #
+###############################################
 
-  # sla stdev 
-trpsbtrp_d_b_slastd_stat <- j_trp_sbtrp_d_b_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
+#### splitting biomes by continent ####
 
-# 6) tropical and subtropical conif forest ----
-  # sla mean 
-trpsbtrp_con_sla_stat <- j_trp_sbtrp_c_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
-
-  # sla stdev
-trpsbtrp_con_slastd_stat <- j_trp_sbtrp_c_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
-
-# 7) tropical subtropical moist broadleaf ----
-  # sla mean 
-trpsbtrp_m_b_sla_stat <- j_trp_sbtrp_m_br_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
-
-  # sla stdev 
-trpsbtrp_m_b_slastd_stat <- j_trp_sbtrp_m_br_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b, 
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
-
-# 8) mediterranean forests, woodlands, scrub ----
-  # sla mean
-med_f_w_scr_sla_stat <- j_med_f_sla %>%
-  rename("cardamom" = sla, "butler" = specific.leaf.area) %>%
-  filter(cardamom!=0, butler!=0) %>%
-  mutate(mean_c = mean(cardamom),
-         mean_b = mean(butler),
-         diff_butler = butler-mean_b,
-         diff_butler2 = diff_butler^2,
-         sum_diff_butler2 = sum(diff_butler2),
-         slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-           sum((cardamom-mean_c)^2),
-         b_intercept = mean_b - (slope_bf*mean_c),
-         new_b_val = b_intercept + (slope_bf*cardamom),
-         dist_mean_new_b = new_b_val - mean_b,
-         sqrd_dist_b = dist_mean_new_b^2,
-         sum_sqrd_dist_b = sum(sqrd_dist_b),
-         sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-         bias = bias(butler, new_b_val),
-         rmse_av = rmse(butler, new_b_val),
-         rmse_row = sqrt(se(butler, new_b_val)))
-
-  # sla stdev 
-med_f_w_scr_slastd_stat <- j_med_f_slastd %>%
-  rename("cardamom_std" = Standard_Deviation, 
-         "butler_std" = specific.leaf.area) %>%
-  filter(cardamom_std!=0, butler_std!=0) %>%
-  mutate(meanstd_b = mean(butler_std),
-         meanstd_c = mean(cardamom_std),
-         diff_b_std = butler_std-meanstd_b,
-         sqrd_diff_b = diff_b_std^2,
-         sum_sqrd_diff_b = sum(sqrd_diff_b),
-         slopestd_bf = (sum((cardamom_std-meanstd_c)*(butler_std-meanstd_b))/
-                          sum((cardamom_std-meanstd_c)^2)),
-         bstd_intercept = meanstd_b-(slopestd_bf*meanstd_c),
-         new_bstd_val = bstd_intercept + (slopestd_bf*cardamom_std),
-         dist_std_new_b = new_bstd_val - meanstd_b,
-         sqrd_dist_std_b = dist_std_new_b^2,
-         sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
-         bias = bias(butler_std, new_bstd_val),
-         rmse_av = rmse(butler_std, new_bstd_val),
-         rmse_row = sqrt(se(butler_std, new_bstd_val)))
 
 
 #### MAKE A TABLE WITH R2 AND RMSE AVERAGES for all the different subdivisions ####
@@ -2505,5 +1936,10 @@ stat_results <- stat_results %>%
 
 
 # im not sure im understanding how to fucking calculate bias and rmse for fucks sake
+
+
+
+
+
 
 
