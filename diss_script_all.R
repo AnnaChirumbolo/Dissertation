@@ -9,8 +9,6 @@
 # MODEL = BUTLER 
 # OBSERVATIONS = CARDAMOM = REFERENCE
 
-## STIPPLING!!!!!!!! to represent uncertainty (units same as that of mean)
-
 # scatter plot - make heatmap --| ASK CODING CLUB / MADE A HEATSCATTER (BETTER REPR) / ASK IF I COULD DO IT WITH THE MAP OF THE WORLD?
 
 # for results (to put in table and have the figures showing)
@@ -68,7 +66,10 @@ library(sf)
 library(kableExtra)
 library(rasterVis)
 library(overlapping)
-
+library(rworldmap)
+library(rgeos)
+library(maptools)
+library(cleangeo)
 
 ### opening netcdf, to data frame ----
 # opening the .nc files 
@@ -429,7 +430,7 @@ global_sla_stat <- joined_sla %>%
          sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
          rmse_av = rmse(butler, cardamom),
          rmse_row = sqrt(se(butler, cardamom)),
-         bias = bias(butler, cardamom),
+         bias_av = bias(butler, cardamom),
          bias_row = butler-cardamom)
 
 # plotting rmse sla mean 
@@ -461,10 +462,10 @@ global_slastd_stat <- joined_sla_std %>%
          dist_std_new_b = new_bstd_val - meanstd_b,
          sqrd_dist_std_b = dist_std_new_b^2,
          sum_sqrd_dist_std_b = sum(sqrd_dist_std_b),
-         sla_std_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
+         sla_r2 = sum_sqrd_dist_std_b / sum_sqrd_diff_b,
          rmse_av = rmse(butler_std, cardamom_std),
          rmse_row = sqrt(se(butler_std, cardamom_std)),
-         bias = bias(butler_std, cardamom_std),
+         bias_av = bias(butler_std, cardamom_std),
          bias_row = butler_std-cardamom_std)
 
 # plotting rmse sla stdev  
@@ -483,6 +484,7 @@ global_slastd_stat <- joined_sla_std %>%
 (rmse_panelled <- ggarrange(sla_rmse_plot, slastd_rmse_plot, ncol = 2))
 ggsave("./figures/RMSE_panel.png", rmse_panelled, width = 50, height = 20, 
        units="cm", dpi = 300)
+
 
 ## the R2 when im doing a linear regression - NOT BEING USED ATM (all commented)----
 #lm_sla <- lm(butler ~ cardamom, data = joined_sla)
@@ -915,33 +917,30 @@ for (i in 1:length(lat.std.list)){
 
 
 #### latitude STATS ####
-lat.df <- list(tropics_sla=trpSLA,subtropics_sla=sbtrp_joined_SLA,
-               temperate_sla=tmp_sla, pole_sla=plN)
-lat.stats <- list()
+  # sla mean
+lat.df <- list(Tropics=trpSLA,Subtropics=sbtrp_joined_SLA,
+               Temperate=tmp_sla, Pole=plN)
 for (i in 1:length(lat.df)){
-  stats <- lat.df[[i]] %>%
-    rename("cardamom"=sla, "butler"=specific.leaf.area)%>%
-    filter(cardamom!=0, butler!=0) %>%
-    mutate(mean_c = mean(cardamom),
-           mean_b = mean(butler),
-           diff_butler = butler-mean_b,
-           diff_butler2 = diff_butler^2,
-           sum_diff_butler2 = sum(diff_butler2),
-           slope_bf = sum((cardamom-mean_c)*(butler-mean_b))/
-             sum((cardamom-mean_c)^2),
-           b_intercept = mean_b - (slope_bf*mean_c),
-           new_b_val = b_intercept + (slope_bf*cardamom),
-           dist_mean_new_b = new_b_val - mean_b,
-           sqrd_dist_b = dist_mean_new_b^2,
-           sum_sqrd_dist_b = sum(sqrd_dist_b),
-           trps_sla_r2 = sum_sqrd_dist_b / sum_diff_butler2,
-           rmse_av = rmse(butler, cardamom),
-           rmse_row = sqrt(se(butler, cardamom)),
-           bias = bias(butler, cardamom),
-           bias_row = butler-cardamom)
-  name.lat <- paste("stat",names(lat.df)[i],sep = ".")
-  lat.stats[[name.lat]] <- stats
+  colnames(lat.df[[i]]) <- sub("sla","cardamom",colnames(lat.df[[i]]))
+  colnames(lat.df[[i]]) <- sub("specific.leaf.area","butler",
+                                    colnames(lat.df[[i]]))
 }
+lat.df <- lapply(lat.df, na.omit)
+lat.stats <- stats.f(lat.df)
+
+# sla stdev
+lat.std.df <- list(Tropics.std=trpSTD,Subtropics.std=sbtrp_joined_STD,
+               Temperate.std=tmp_slastd, Pole.std=plN_std)
+for (i in 1:length(lat.std.df)){
+  colnames(lat.std.df[[i]]) <- sub("Standard_Deviation","cardamom",
+                                       colnames(lat.std.df[[i]]))
+  colnames(lat.std.df[[i]]) <- sub("specific.leaf.area","butler",
+                                       colnames(lat.std.df[[i]]))
+}
+
+lat.std.df <- lapply(lat.std.df, na.omit)
+lat.std.stats <- stats.f(lat.std.df)
+
 
 # HEATSCATTER: saving figure for sla mean by latitudinal range----
 png("./figures/heatsc_latitude_sla.png", width = 40, height = 30, 
@@ -1072,241 +1071,62 @@ st_bbox(ecoregions17)
                   ggtitle("Ecoregions 2017") + 
                   coord_sf())
 
-unique(ecoregions17[[4]])
-ecoregions17_geom <- st_geometry(ecoregions17)
-ecoregions17_geom[[1]]
+#unique(ecoregions17[[4]])
+#ecoregions17_geom <- st_geometry(ecoregions17)
+#ecoregions17_geom[[1]]
 
-# creation of different raster layers by major biome types ----
-boreal_f_taiga <- ecoregions17 %>%
-  filter(BIOME_NAME == "Boreal Forests/Taiga")
-tundra <- ecoregions17 %>%
-  filter(BIOME_NAME == "Tundra")
-temp_conif_forest <- ecoregions17 %>%
-  filter(BIOME_NAME == "Temperate Conifer Forests")
-temp_broad_mix <- ecoregions17 %>%
-  filter(BIOME_NAME == "Temperate Broadleaf & Mixed Forests")
-trp_sbtrp_dry_broad <- ecoregions17 %>%
-  filter(BIOME_NAME == "Tropical & Subtropical Dry Broadleaf Forests")
-trp_sbtrp_conif <- ecoregions17 %>%
-  filter(BIOME_NAME == "Tropical & Subtropical Coniferous Forests")
-trp_sbtrp_moist_broad <- ecoregions17 %>%
-  filter(BIOME_NAME == "Tropical & Subtropical Moist Broadleaf Forests")
-med_f_w_scr <- ecoregions17 %>%
-  filter(BIOME_NAME == "Mediterranean Forests, Woodlands & Scrub")
-des_x_scr <- ecoregions17 %>%
-  filter(BIOME_NAME == "Deserts & Xeric Shrublands")
-temp_grass_sav_shr <- ecoregions17 %>%
-  filter(BIOME_NAME == "Temperate Grasslands, Savannas & Shrublands")
-mont_grass_shr <- ecoregions17 %>%
-  filter(BIOME_NAME == "Montane Grasslands & Shrublands")
-mangroves <- ecoregions17 %>%
-  filter(BIOME_NAME == "Mangroves")
-flo_grass_sav <- ecoregions17 %>%
-  filter(BIOME_NAME == "Flooded Grasslands & Savannas")
-trp_sbtrp_grass_sav_shr <- ecoregions17 %>%
-  filter(BIOME_NAME == "Tropical & Subtropical Grasslands, Savannas & Shrublands")
+# splitting ecosystem17 dataset by biome, list of dataframes
+filtered.biome <- split(ecoregions17, f=ecoregions17$BIOME_NAME)
+filtered.biome$`N/A` <- NULL # removing ecoregion "rocks and ice", equivalent of N/A biome in dataset 
+                              # check https://ecoregions2017.appspot.com/ for confirmation
+                              # confirmed
 
-# 1) mask raster taiga biome  ----
-# sla mean
-masked_taiga_sla_c <- raster::mask(cardamom_sla, boreal_f_taiga)
-masked_taiga_sla_b <- raster::mask(butler_sla, boreal_f_taiga)
-#plot(masked_taiga_sla_c[[1]])
-#plot(masked_taiga_sla_b[[1]])
+# creating mask of cardamom and butler based on biome ----
+  # sla mean
+m.cardamom.biome <- list()
+for (i in 1:length(filtered.biome)){
+    mask.biome <- raster::mask(cardamom_sla, filtered.biome[[i]])
+    if (!is.infinite(mask.biome@data@min)&!is.infinite(mask.biome@data@max)){
+      name.biome <- names(filtered.biome)[i]
+      m.cardamom.biome[[name.biome]] <- mask.biome
+    }
+    else
+      NULL
+}
 
-# sla stdev 
-masked_taiga_slastd_c <- raster::mask(cardamom_sla_std, boreal_f_taiga)
-masked_taiga_slastd_b <- raster::mask(butler_sla_std, boreal_f_taiga)
-#plot(masked_taiga_slastd_c[[1]])
-#plot(masked_taiga_slastd_b[[1]])
-# 2) mask raster tundra biome ----
-# sla mean 
-masked_tundra_sla_c <- raster::mask(cardamom_sla, tundra)
-masked_tundra_sla_b <- raster::mask(butler_sla, tundra)
-#plot(masked_tundra_sla_c[[1]])
-#plot(masked_tundra_sla_b[[1]])
+m.butler.biome <- list()
+for (i in 1:length(filtered.biome)){
+    mask.biome <- raster::mask(butler_sla, filtered.biome[[i]])
+    if (!is.infinite(mask.biome@data@min)&!is.infinite(mask.biome@data@max)){
+      name.biome <- names(filtered.biome)[i]
+      m.butler.biome[[name.biome]] <- mask.biome
+    }
+    else
+      NULL
+}
 
-# sla stdev 
-masked_tundra_slastd_c <- raster::mask(cardamom_sla_std, tundra)
-masked_tundra_slastd_b <- raster::mask(butler_sla_std, tundra)
-#plot(masked_tundra_slastd_c[[1]])
-#plot(masked_tundra_slastd_b[[1]])
+  # sla stdev 
+m.cardamom.std.biome <- list()
+for (i in 1:length(filtered.biome)){
+    mask.biome <- raster::mask(cardamom_sla_std, filtered.biome[[i]])
+    if (!is.infinite(mask.biome@data@min)&!is.infinite(mask.biome@data@max)){
+      name.biome <- names(filtered.biome)[i]
+      m.cardamom.std.biome[[name.biome]] <- mask.biome
+    }
+    else
+      NULL
+}
 
-# 3) mask raster temp conif forest biome ----
-# sla mean 
-mask_temp_conif_sla_c <- raster::mask(cardamom_sla,temp_conif_forest)
-mask_temp_conif_sla_b <- raster::mask(butler_sla, temp_conif_forest)
-#plot(mask_temp_conif_sla_c[[1]])
-#plot(mask_temp_conif_sla_b[[1]])
-
-# sla stdev 
-mask_temp_conif_slastd_c <- raster::mask(cardamom_sla_std, temp_conif_forest)
-mask_temp_conif_slastd_b <- raster::mask(butler_sla_std, temp_conif_forest)
-#plot(mask_temp_conif_slastd_c[[1]])
-#plot(mask_temp_conif_slastd_b[[1]])
-
-# 4) mask raster temperate broad and mixed forest biome ----
-# sla mean
-mask_temp_broad_mix_sla_c <- raster::mask(cardamom_sla, temp_broad_mix)
-mask_temp_broad_mix_sla_b <- raster::mask(butler_sla, temp_broad_mix)
-#plot(mask_temp_broad_mix_sla_c[[1]])
-#plot(mask_temp_broad_mix_sla_b[[1]])
-
-# sla stdev 
-mask_temp_broad_mix_slastd_c <- raster::mask(cardamom_sla_std, temp_broad_mix)
-mask_temp_broad_mix_slastd_b <- raster::mask(butler_sla_std, temp_broad_mix)
-#plot(mask_temp_broad_mix_slastd_c[[1]])
-#plot(mask_temp_broad_mix_slastd_b[[1]])
-
-# 5) mask raster tropical and subtropical dry broadleaf biome ----
-# sla mean
-mask_trp_sbtrp_dry_broad_sla_c <- raster::mask(cardamom_sla, 
-                                               trp_sbtrp_dry_broad)
-mask_trp_sbtrp_dry_broad_sla_b <-raster::mask(butler_sla, trp_sbtrp_dry_broad)
-#plot(mask_trp_sbtrp_dry_broad_sla_c[[1]])
-#plot(mask_trp_sbtrp_dry_broad_sla_b[[1]])
-
-# sla stdev 
-mask_trp_sbtrp_dry_broad_slastd_c <- raster::mask(cardamom_sla_std, 
-                                                  trp_sbtrp_dry_broad)
-mask_trp_sbtrp_dry_broad_slastd_b <- raster::mask(butler_sla_std, 
-                                                  trp_sbtrp_dry_broad)
-#plot(mask_trp_sbtrp_dry_broad_slastd_c[[1]])
-#plot(mask_trp_sbtrp_dry_broad_slastd_b[[1]])
-
-# 6) mask raster tropical and subtropical conif forest biome ----
-# sla mean 
-mask_trp_sbtrp_conif_sla_c <- raster::mask(cardamom_sla, trp_sbtrp_conif)
-mask_trp_sbtrp_conif_sla_b <- raster::mask(butler_sla, trp_sbtrp_conif)
-#plot(mask_trp_sbtrp_conif_sla_c[[1]])
-#plot(mask_trp_sbtrp_conif_sla_b[[1]])
-
-# sla stdev 
-mask_trp_sbtrp_conif_slastd_c <- raster::mask(cardamom_sla_std, trp_sbtrp_conif)
-mask_trp_sbtrp_conif_slastd_b <- raster::mask(butler_sla_std, trp_sbtrp_conif)
-#plot(mask_trp_sbtrp_conif_slastd_c[[1]])
-#plot(mask_trp_sbtrp_conif_slastd_b[[1]])
-
-# 7) mask raster tropical subtropical moist broadleaf biome ----
-# sla mean
-mask_trp_sbtrp_moist_broad_sla_c <- raster::mask(cardamom_sla, 
-                                                 trp_sbtrp_moist_broad)
-mask_trp_sbtrp_moist_broad_sla_b <- raster::mask(butler_sla, 
-                                                 trp_sbtrp_moist_broad)
-#plot(mask_trp_sbtrp_moist_broad_sla_c[[1]])
-#plot(mask_trp_sbtrp_moist_broad_sla_b[[1]])
-
-# sla stdev 
-mask_trp_sbtrp_moist_broad_slastd_c <- raster::mask(cardamom_sla_std, 
-                                                    trp_sbtrp_moist_broad)
-mask_trp_sbtrp_moist_broad_slastd_b <- raster::mask(butler_sla_std, 
-                                                    trp_sbtrp_moist_broad)
-#plot(mask_trp_sbtrp_moist_broad_slastd_c[[1]])
-#plot(mask_trp_sbtrp_moist_broad_slastd_b[[1]])
-
-### these might be extras ###
-# 8) mask raster mediterranean forests, woodlands, scrub biome ----
-# sla mean
-mask_med_f_w_scr_sla_c <- raster::mask(cardamom_sla, med_f_w_scr)
-mask_med_f_w_scr_sla_b <- raster::mask(butler_sla, med_f_w_scr)
-#plot(mask_med_f_w_scr_sla_c[[1]])
-#plot(mask_med_f_w_scr_sla_b[[1]])
-
-# sla stdev 
-mask_med_f_w_scr_slastd_c <- raster::mask(cardamom_sla_std, med_f_w_scr)
-mask_med_f_w_scr_slastd_b <- raster::mask(butler_sla_std, med_f_w_scr)
-#plot(mask_med_f_w_scr_slastd_c[[1]])
-#plot(mask_med_f_w_scr_slastd_b[[1]])
-
-# 9) mask raster desertic and xeric scrubland biome ----
-# sla mean
-mask_des_x_scr_sla_c <- raster::mask(cardamom_sla, des_x_scr)
-mask_des_x_scr_sla_b <- raster:: mask(butler_sla, des_x_scr)
-#plot(mask_des_x_scr_sla_c[[1]])
-#plot(mask_des_x_scr_sla_b[[1]])
-
-# sla stdev 
-mask_des_x_scr_slastd_c <- raster::mask(cardamom_sla_std, des_x_scr)
-mask_des_x_scr_slastd_b <- raster::mask(butler_sla_std, des_x_scr)
-#plot(mask_des_x_scr_slastd_c[[1]])
-#plot(mask_des_x_scr_slastd_b[[1]])
-
-# 10) mask raster temperate grassland, savanna, shrubland biome ----
-# sla mean
-mask_temp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla,temp_grass_sav_shr)
-mask_temp_grass_sav_shr_sla_b <- raster::mask(butler_sla, temp_grass_sav_shr)
-#plot(mask_temp_grass_sav_shr_sla_c[[1]])
-#plot(mask_temp_grass_sav_shr_sla_b[[1]])
-
-# sla stdev
-mask_temp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std, 
-                                                 temp_grass_sav_shr)
-mask_temp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std, 
-                                                 temp_grass_sav_shr)
-#plot(mask_temp_grass_sav_shr_slastd_c[[1]])
-#plot(mask_temp_grass_sav_shr_slastd_b[[1]])
-
-# 11) mask raster montane grassland and shrubland biome ----
-# sla mean 
-mask_mont_grass_shr_sla_c <- raster::mask(cardamom_sla, mont_grass_shr)
-mask_mont_grass_shr_sla_b <- raster::mask(butler_sla, mont_grass_shr)
-#plot(mask_mont_grass_shr_sla_c[[1]])
-#plot(mask_mont_grass_shr_sla_b[[1]])
-
-# sla stdev 
-mask_mont_grass_shr_slastd_c <- raster::mask(cardamom_sla_std, 
-                                             mont_grass_shr)
-mask_mont_grass_shr_slastd_b <- raster::mask(butler_sla_std, 
-                                             mont_grass_shr)
-#plot(mask_mont_grass_shr_slastd_c[[1]])
-#plot(mask_mont_grass_shr_slastd_b[[1]])
-
-# 12) mask raster mangrove biome ----
-# sla mean
-mask_mangroves_sla_c <- raster::mask(cardamom_sla, mangroves)
-mask_mangroves_sla_b <- raster::mask(butler_sla, mangroves)
-#plot(mask_mangroves_sla_c[[1]])
-#plot(mask_mangroves_sla_b[[1]])
-
-# sla stdev 
-mask_mangroves_slastd_c <- raster::mask(cardamom_sla_std, mangroves)
-mask_mangroves_slastd_b <- raster::mask(butler_sla_std, mangroves)
-#plot(mask_mangroves_slastd_c[[1]])
-#plot(mask_mangroves_slastd_b[[1]])
-
-# 13) mask raster flooded grassland and savanna biome ----
-# sla mean
-mask_flo_grass_sav_sla_c <- raster::mask(cardamom_sla, flo_grass_sav)
-mask_flo_grass_sav_sla_b <- raster::mask(butler_sla, flo_grass_sav)
-#plot(mask_flo_grass_sav_sla_c[[1]])
-#plot(mask_flo_grass_sav_sla_b[[1]])
-
-# sla stdev 
-mask_flo_grass_sav_slastd_c <- raster::mask(cardamom_sla_std, flo_grass_sav)
-mask_flo_grass_sav_slastd_b <- raster::mask(butler_sla_std, flo_grass_sav)
-#plot(mask_flo_grass_sav_slastd_c[[1]])
-#plot(mask_flo_grass_sav_slastd_b[[1]])
-
-# 14) mask raster tropical and subtropical grassland, savanna, shrubland biome ----
-# sla mean 
-mask_trp_sbtrp_grass_sav_shr_sla_c <- raster::mask(cardamom_sla, 
-                                                   trp_sbtrp_grass_sav_shr)
-mask_trp_sbtrp_grass_sav_shr_sla_b <- raster::mask(butler_sla, 
-                                                   trp_sbtrp_grass_sav_shr)
-#plot(mask_trp_sbtrp_grass_sav_shr_sla_c[[1]])
-#plot(mask_trp_sbtrp_grass_sav_shr_sla_b[[1]])
-
-# sla stdev 
-mask_trp_sbtrp_grass_sav_shr_slastd_c <- raster::mask(cardamom_sla_std,
-                                                      trp_sbtrp_grass_sav_shr)
-mask_trp_sbtrp_grass_sav_shr_slastd_b <- raster::mask(butler_sla_std,
-                                                      trp_sbtrp_grass_sav_shr)
-#plot(mask_trp_sbtrp_grass_sav_shr_slastd_c[[1]])
-#plot(mask_trp_sbtrp_grass_sav_shr_slastd_b[[1]])
-
-
-
-
-
+m.butler.std.biome <- list()
+for (i in 1:length(filtered.biome)){
+    mask.biome <- raster::mask(butler_sla_std, filtered.biome[[i]])
+    if (!is.infinite(mask.biome@data@min)&!is.infinite(mask.biome@data@max)){
+      name.biome <- names(filtered.biome)[i]
+      m.butler.std.biome[[name.biome]] <- mask.biome
+    }
+    else
+      NULL
+}
 
 #### VISUAL AND STAT ANALYSIS BY BIOME ####
 # first thing - turning all masked rasterlayers to dataframes ----
@@ -1319,79 +1139,17 @@ mask.to.df <- function(x){
   }
   new.list
 }
-  # sla mean - butler
-biome.butler.raster.list <- list(taiga.b=masked_taiga_sla_b,
-                          tundra.b= masked_tundra_sla_b,
-                          des.b = mask_des_x_scr_sla_b,
-                          trp.g.b = mask_trp_sbtrp_grass_sav_shr_sla_b,
-                          temp.c.b=mask_temp_conif_sla_b,
-                          med.b=mask_med_f_w_scr_sla_b,
-                          mang.b=mask_mangroves_sla_b,
-                          temp.bm.b=mask_temp_broad_mix_sla_b,
-                          trp.c.b=mask_trp_sbtrp_conif_sla_b,
-                          flo.g.b=mask_flo_grass_sav_sla_b,
-                          mont.g.b=mask_mont_grass_shr_sla_b,
-                          trp.db.b=mask_trp_sbtrp_dry_broad_sla_b,
-                          trp.mb.b=mask_trp_sbtrp_moist_broad_sla_b,
-                          temp.g.b=mask_temp_grass_sav_shr_sla_b)
 
-biome.butler.df <- mask.to.df(biome.butler.raster.list)
+  # sla mean
+biome.cardamom.df <- mask.to.df(m.cardamom.biome)
+biome.butler.df <- mask.to.df(m.butler.biome)
+  # sla stdev
+biome.butler.df.std <- mask.to.df(m.butler.std.biome)
+biome.cardamom.df.std <- mask.to.df(m.cardamom.std.biome)
 
-  # sla mean - cardamom
-biome.cardamom.raster.list <- list(taiga.c=masked_taiga_sla_c,
-                                 tundra.c= masked_tundra_sla_c,
-                                 des.c = mask_des_x_scr_sla_c,
-                                 trp.g.c = mask_trp_sbtrp_grass_sav_shr_sla_c,
-                                 temp.c.c=mask_temp_conif_sla_c,
-                                 med.c=mask_med_f_w_scr_sla_c,
-                                 mang.c=mask_mangroves_sla_c,
-                                 temp.bm.c=mask_temp_broad_mix_sla_c,
-                                 trp.c.c=mask_trp_sbtrp_conif_sla_c,
-                                 flo.g.c=mask_flo_grass_sav_sla_c,
-                                 mont.g.c=mask_mont_grass_shr_sla_c,
-                                 trp.db.c=mask_trp_sbtrp_dry_broad_sla_c,
-                                 trp.mb.c=mask_trp_sbtrp_moist_broad_sla_c,
-                                 temp.g.c=mask_temp_grass_sav_shr_sla_c)
-
-biome.cardamom.df <- mask.to.df(biome.cardamom.raster.list)
-
-  # sla stdev - butler 
-biome.cardamom.raster.std <- list(taiga.c=masked_taiga_slastd_c,
-                                   tundra.c= masked_tundra_slastd_c,
-                                   des.c = mask_des_x_scr_slastd_c,
-                                   trp.g.c = mask_trp_sbtrp_grass_sav_shr_slastd_c,
-                                   temp.c.c=mask_temp_conif_slastd_c,
-                                   med.c=mask_med_f_w_scr_slastd_c,
-                                   mang.c=mask_mangroves_slastd_c,
-                                   temp.bm.c=mask_temp_broad_mix_slastd_c,
-                                   trp.c.c=mask_trp_sbtrp_conif_slastd_c,
-                                   flo.g.c=mask_flo_grass_sav_slastd_c,
-                                   mont.g.c=mask_mont_grass_shr_slastd_c,
-                                   trp.db.c=mask_trp_sbtrp_dry_broad_slastd_c,
-                                   trp.mb.c=mask_trp_sbtrp_moist_broad_slastd_c,
-                                   temp.g.c=mask_temp_grass_sav_shr_slastd_c)
-
-biome.cardamom.df.std <- mask.to.df(biome.cardamom.raster.std)
-
-  # sla stdev - cardamom 
-biome.butler.raster.std <- list(taiga.b=masked_taiga_slastd_b,
-                                tundra.b= masked_tundra_slastd_b,
-                                des.b = mask_des_x_scr_slastd_b,
-                                trp.g.b = mask_trp_sbtrp_grass_sav_shr_slastd_b,
-                                temp.c.b=mask_temp_conif_slastd_b,
-                                med.b=mask_med_f_w_scr_slastd_b,
-                                mang.b=mask_mangroves_slastd_b,
-                                temp.bm.b=mask_temp_broad_mix_slastd_b,
-                                trp.c.b=mask_trp_sbtrp_conif_slastd_b,
-                                flo.g.b=mask_flo_grass_sav_slastd_b,
-                                mont.g.b=mask_mont_grass_shr_slastd_b,
-                                trp.db.b=mask_trp_sbtrp_dry_broad_slastd_b,
-                                trp.mb.b=mask_trp_sbtrp_moist_broad_slastd_b,
-                                temp.g.b=mask_temp_grass_sav_shr_slastd_b)
-biome.butler.df.std <- mask.to.df(biome.butler.raster.std)
 
 # joining dataframes cardamom + butler ----
-join.f <- function(x,y,na.omit=TRUE){
+join.f <- function(x,y){
   new.list <- list()
   join <- mapply(left_join, x, y,SIMPLIFY = FALSE)
   join <- lapply(join, na.omit)
@@ -1399,10 +1157,10 @@ join.f <- function(x,y,na.omit=TRUE){
   new.list[[name.df]] <- join
 }
 
-# sla mean
-j.biome.sla <- join.f(biome.cardamom.df,biome.butler.df, na.omit = TRUE)
+  # sla mean
+j.biome.sla <- join.f(biome.cardamom.df,biome.butler.df)
 
-# sla stdev 
+  # sla stdev 
 j.biome.slastd <- join.f(biome.cardamom.df.std,biome.butler.df.std)
 
 
@@ -1789,6 +1547,7 @@ dev.off()
 
 
 
+
 # STATS MAJ BIOMES: r2, rmse, bias ----
 
 # first thing - renaming sla and specific.leaf.area parameters to cardamom and
@@ -1827,7 +1586,7 @@ stats.f <- function(x){
     df$bias_av <- bias(df$butler, df$cardamom)
     df$bias_row <- df$butler - df$cardamom
     df$rmse_av <- rmse(df$butler, df$cardamom)
-    df$rmse_row <- sqrt(se(df$butler, df$cardamom))
+    df$rmse_row <- sqrt((df$butler - df$cardamom)^2)
     df
   })
 }
@@ -1838,108 +1597,346 @@ biome.sla.stats <- stats.f(j.biome.sla)
   # sla stdev
 biome.slastd.stats <- stats.f(j.biome.slastd)
 
-###############################################
-# stat analysis by biome in diff continents        #
-###############################################
-
-#### splitting biomes by continent ####
 
 
+####################################################
+#### stat analysis by biome in diff continents  ####
+####################################################
+world <- getMap()
+plot(world)
+world <- clgeo_Clean(world)  ## Needed to fix up some non-closed polygons 
+cont <- sapply(levels(world$continent),
+         FUN = function(i) {
+           ## Merge polygons within a continent
+           poly <- gUnionCascaded(subset(world, continent==i))
+           ## Give each polygon a unique ID
+           poly <- spChFIDs(poly, i)
+           ## Make SPDF from SpatialPolygons object
+           SpatialPolygonsDataFrame(poly,
+                                    data.frame(continent=i, row.names=i))
+         },
+         USE.NAMES=TRUE)
 
-#### MAKE A TABLE WITH R2 AND RMSE AVERAGES for all the different subdivisions ####
-Area <- c("global", "tropics", "subtropics",
-         "temperate", "pole (N)", 
-         "tundra", "taiga", "temperate coniferous",
-         "temperate broadleaf/mixed",
-         "tropical and subtropical dry broadleaf",
-         "tropical and subtropical coniferous",
-         "tropical and subtropical moist broadleaf",
-         "mediterranean forest, woodland and scrubland")
-R2 <- c(unique(c(global_sla_stat$trps_sla_r2,
-                 trps_sla_stat$trps_sla_r2, 
-                 sbtrp_sla_stat$sbtrp_sla_r2,
-                 tmp_sla_stat$tmp_sla_r2,
-                 pl_stat$pl_sla_r2, tundra_sla_stat$sla_r2, 
-                 taiga_sla_stat$sla_r2, temp_con_sla_stat$sla_r2,
-                 temp_b_m_sla_stat$sla_r2, trpsbtrp_d_b_sla_stat$sla_r2,
-                 trpsbtrp_con_sla_stat$sla_r2, trpsbtrp_m_b_sla_stat$sla_r2,
-                 med_f_w_scr_sla_stat$sla_r2)))
-RMSE <- c(unique(c(global_sla_stat$rmse_av, trps_sla_stat$rmse_av,
-                   sbtrp_sla_stat$rmse_av, tmp_sla_stat$rmse_av,
-                   pl_stat$rmse_av, tundra_sla_stat$rmse_av,
-                   taiga_sla_stat$rmse_av, temp_con_sla_stat$rmse_av,
-                   temp_b_m_sla_stat$rmse_av, trpsbtrp_d_b_sla_stat$rmse_av,
-                   trpsbtrp_con_sla_stat$rmse_av, trpsbtrp_m_b_sla_stat$rmse_av,
-                   med_f_w_scr_sla_stat$rmse_av)))
-R2_std <-   c(unique(c(global_slastd_stat$sla_std_r2, 
-                       trps_std_stat$trps_sla_std_r2, 
-                       sbtrp_std_stat$sbtrp_sla_std_r2,
-                       tmp_std_stat$tmp_sla_std_r2,
-                       pl_std_stat$pl_sla_std_r2, tundra_slastd_stat$sla_std_r2,
-                       taiga_slastd_stat$sla_std_r2, 
-                       temp_con_slastd_stat$sla_std_r2,
-                       temp_b_m_slastd_stat$sla_std_r2, 
-                       trpsbtrp_d_b_slastd_stat$sla_std_r2,
-                       trpsbtrp_con_slastd_stat$sla_std_r2,
-                       trpsbtrp_m_b_slastd_stat$sla_std_r2, 
-                       med_f_w_scr_slastd_stat$sla_std_r2)))
-RMSE_std <- c(unique(c(global_slastd_stat$rmse_av, 
-                       trps_std_stat$rmse_av, sbtrp_std_stat$rmse_av,
-                       tmp_std_stat$rmse_av,
-                       pl_std_stat$rmse_av, tundra_slastd_stat$rmse_av,
-                       taiga_slastd_stat$rmse_av, temp_con_slastd_stat$rmse_av,
-                       temp_b_m_slastd_stat$rmse_av, 
-                       trpsbtrp_d_b_slastd_stat$rmse_av, 
-                       trpsbtrp_con_slastd_stat$rmse_av, 
-                       trpsbtrp_m_b_slastd_stat$rmse_av,
-                       med_f_w_scr_slastd_stat$rmse_av)))
-bias <- c(unique(c(global_sla_stat$bias, trps_sla_stat$bias,
-                   sbtrp_sla_stat$bias, tmp_sla_stat$bias,
-                   pl_stat$bias, tundra_sla_stat$bias, taiga_sla_stat$bias,
-                   temp_con_sla_stat$bias, temp_b_m_sla_stat$bias,
-                   trpsbtrp_d_b_sla_stat$bias, trpsbtrp_con_sla_stat$bias,
-                   trpsbtrp_m_b_sla_stat$bias, med_f_w_scr_sla_stat$bias)))
-bias_std <- c(unique(c(global_slastd_stat$bias, trps_std_stat$bias,
-                       sbtrp_std_stat$bias, tmp_std_stat$bias,
-                       pl_std_stat$bias, tundra_slastd_stat$bias,
-                       taiga_slastd_stat$bias, temp_con_slastd_stat$bias,
-                       temp_b_m_slastd_stat$bias, trpsbtrp_d_b_slastd_stat$bias,
-                       trpsbtrp_con_slastd_stat$bias,
-                       trpsbtrp_m_b_slastd_stat$bias, 
-                       med_f_w_scr_slastd_stat$bias)))
-stat_results <- as.data.frame(cbind(c(stat_results, Area)))
-stat_results <- stat_results %>%
-  rename("area" = V1) %>%
-  filter(area != 0) %>%
-  mutate(R2 = R2, R2_std = R2_std, RMSE = RMSE, RMSE_std = RMSE_std,
-         bias = bias, bias_std = bias_std)
+# masking the biomes by continent with loop
+mask.biome.f <- function(x,y){
+  new.list <- list()
+  for (i in 1:length(x)){
+    for (j in 1:length(y)){
+      mask.biome <- raster::mask(x[[i]],y[[j]])
+      if (!is.infinite(mask.biome@data@min)&!is.infinite(mask.biome@data@max)){
+        name <- paste(names(x)[i],names(y)[j],sep = " ")
+        new.list[[name]] <- mask.biome
+      }
+      else
+        NULL
+    }
+  }
+  new.list
+}
 
-(stat_results_table <- stat_results %>%
-  dplyr::rename("Sla Mean (r2)" = R2, "Sla StDev (r2)" = R2_std, 
-                "Sla Mean (rmse)" = RMSE,
-                "Sla StDev (rmse)" = RMSE_std,
-                "Area" = area, "Sla Mean (bias)" = bias,
-                "Sla StDev (bias)" = bias_std) %>%
-  kable(digits = 30, "latex", booktabs = T) %>%
+  # sla mean
+mask.biome.bycont.c <- mask.biome.f(m.cardamom.biome, cont) # 52 elements
+mask.biome.bycont.b <- mask.biome.f(m.butler.biome, cont) # 49 elements
+  # butler seems to be missing three biomes when divided by continent, 
+  # sla stdev 
+mask.biome.std.bycont.c <- mask.biome.f(m.cardamom.std.biome, cont)
+mask.biome.std.by.cont.b <- mask.biome.f(m.butler.std.biome, cont)
+
+# turning masked biomes by continent to dataframes
+  # sla mean
+biome.bycont.c.df <- mask.to.df(mask.biome.bycont.c) # cardamom rasterLayer to df
+biome.bycont.b.df <- mask.to.df(mask.biome.bycont.b) # butler rasterLayer to df
+  # sla stdev
+biome.std.bycont.c.df <- mask.to.df(mask.biome.std.bycont.c)
+biome.std.bycont.b.df <- mask.to.df(mask.biome.std.by.cont.b)
+
+  # understand what biomes dont match between datasets when split by continent
+diff <- setdiff(names(biome.bycont.c.df),names(biome.bycont.b.df))
+View(diff) 
+diff.std <- setdiff(names(biome.std.bycont.c.df),names(biome.std.bycont.b.df))
+View(diff.std)
+# df.Mangroves Africa, df.Mangroves Australia,df.Mangroves South America
+# for both sla mean and stdev
+
+  # remove them from cardamom 
+biome.bycont.c.df$`df.Mangroves Africa` <- NULL
+biome.bycont.c.df$`df.Mangroves Australia` <- NULL
+biome.bycont.c.df$`df.Mangroves South America`<-NULL
+
+biome.std.bycont.c.df$`df.Mangroves Africa` <- NULL
+biome.std.bycont.c.df$`df.Mangroves Australia` <- NULL
+biome.std.bycont.c.df$`df.Mangroves South America` <- NULL
+
+  # join dataframes under one list by biome*continent
+j.biome.bycont <- join.f(biome.bycont.c.df,biome.bycont.b.df)
+j.biome.std.bycont <- join.f(biome.std.bycont.c.df,biome.std.bycont.b.df)
+
+#renaming sla and specific.leaf.area parameters to cardamom and
+# butler respectively
+# for sla mean
+for (i in 1:length(j.biome.bycont)){
+  colnames(j.biome.bycont[[i]]) <- sub("sla","cardamom",
+                                       colnames(j.biome.bycont[[i]]))
+  colnames(j.biome.bycont[[i]]) <- sub("specific.leaf.area","butler",
+                                    colnames(j.biome.bycont[[i]]))
+}
+# for sla stdev
+for (i in 1:length(j.biome.std.bycont)){
+  colnames(j.biome.std.bycont[[i]]) <- sub("Standard_Deviation","cardamom",
+                                       colnames(j.biome.std.bycont[[i]]))
+  colnames(j.biome.std.bycont[[i]]) <- sub("specific.leaf.area","butler",
+                                       colnames(j.biome.std.bycont[[i]]))
+}
+
+  # carry out stats for biomes*continent
+biome.bycont.stats.sla <- stats.f(j.biome.bycont) # sla mean
+biome.bycont.stats.slastd <- stats.f(j.biome.std.bycont) # sla stdev
+
+
+#### Preparation of table outputs with statistical results ####
+
+  # one table for global, latitude and biome (not by continent) divisions:
+sla.stats.biglist <- list(Global=list(global_sla_stat),Lat=lat.stats,
+                          Biome=biome.sla.stats)
+slastd.stats.biglist <- list(Global.std = list(global_slastd_stat),
+                             Lat.std = lat.std.stats,
+                             Biome.std = biome.slastd.stats)
+
+stats.table.sla <- lapply(sla.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("sla_r2","rmse_av","bias_av")])
+  })
+})
+
+stats.table.std <- lapply(slastd.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("sla_r2","rmse_av","bias_av")])
+  })
+})
+
+stats.table.sla <- lapply(stats.table.sla, function(x){
+  lapply(rapply(x, enquote,how = "unlist"),eval)
+})
+stats.table.std <- lapply(stats.table.std, function(x){
+  lapply(rapply(x,enquote,how = "unlist"),eval)
+})
+
+stats.table.sla <- lapply(rapply(stats.table.sla, enquote,
+                                   how = "unlist"),eval)
+stats.table.std <- lapply(rapply(stats.table.std, 
+                                      enquote,how = "unlist"),eval)
+
+stats.table.sla <- as.data.frame(do.call(rbind, stats.table.sla))
+stats.table.sla<-setDT(stats.table.sla, keep.rownames = TRUE)[]
+stats.table.std <- as.data.frame(do.call(rbind, stats.table.std))
+stats.table.std<-setDT(stats.table.std, keep.rownames = TRUE)[]
+
+stats.table.sla <- stats.table.sla %>%
+  mutate(rn=str_replace(rn,"Global","Global.Global"))%>%
+  mutate(rn=str_replace(rn,"df.","")) %>%
+  mutate(rn=str_replace(rn,"biome.cont","biomebycont")) %>%
+  separate(rn,into = c("Area","Index"),extra = "merge") %>%
+  separate(Index,into = c("Index","Stats"),sep = "\\.") %>%
+  spread(key = Stats, value = V1) %>%
+  rename("Sla Mean (bias)"=bias_av, "Sla Mean (rmse)"=rmse_av,
+         "Sla Mean (r2)"=sla_r2) 
+
+stats.table.std <- stats.table.std %>%
+  mutate(rn=str_replace(rn,"Global","Global.Global")) %>%
+  mutate(rn = str_replace_all(rn,"std.","")) %>%
+  mutate(rn=str_replace(rn,"df.","")) %>%
+  mutate(rn=str_replace(rn,"biome.cont","biomebycont")) %>%
+  separate(rn,into = c("Area","Index"),extra = "merge") %>%
+  separate(Index,into = c("Index","Stats"),sep = "\\.") %>%
+  spread(key = Stats, value = V1) %>%
+  rename("Sla StDev (bias)"=bias_av,"Sla StDev (rmse)"=rmse_av,
+         "Sla StDev (r2)"=sla_r2)
+
+stats.table.out <- left_join(stats.table.sla,stats.table.std) %>%
+  dplyr::select(Area,Index,`Sla Mean (r2)`,`Sla StDev (r2)`,`Sla Mean (rmse)`,
+                `Sla StDev (rmse)`, `Sla StDev (rmse)`, `Sla Mean (bias)`,
+                `Sla StDev (bias)`) %>%
+  arrange_at(1:length(.)) %>%
+  arrange(match(Area, c("Global", "Lat", "Biome"))) 
+
+(stats.out <- stats.table.out[2:length(stats.table.out)] %>%
+  kable(digits = 7, "latex", booktabs = T) %>%
   kable_styling(latex_options = c("striped", "scale_down"),
-    full_width = F,
-                position = "center", font_size = 10) %>%
-  add_header_above(c(" ", "R2" = 2, "RMSE" = 2, "Bias" = 2), bold = T) %>%
+    full_width = F,position = "center", font_size = 12) %>%
+    add_header_above(c(" ","R2" = 2, "RMSE" = 2, "Bias" = 2), 
+                     bold = T) %>%
   kableExtra::group_rows("Latitudinal gradient", 2,5) %>%
-  kableExtra::group_rows("Biome",6,13) %>%
-  as_image(stat_results_table, file= "./figures/table_stat_results.png", 
+  kableExtra::group_rows("Biome",6,19) %>%
+  as_image(stats.table.out, file= "./figures/table_stats-global-lat-biome.png", 
            width = 4, dpi = 500))
 
+   # one table for biomes divided by continent:
+stats.table.sla.bycont <- lapply(biome.bycont.stats.sla, function(x){
+    unique(x[c("sla_r2","rmse_av","bias_av")])
+})
 
+stats.table.std.bycont <- lapply(biome.bycont.stats.slastd, function(x){
+    unique(x[c("sla_r2","rmse_av","bias_av")])
+})
 
+stats.table.sla.bycont <- lapply(stats.table.sla.bycont, function(x){
+  lapply(rapply(x, enquote,how = "unlist"),eval)
+})
+stats.table.std.bycont <- lapply(stats.table.std.bycont, function(x){
+  lapply(rapply(x,enquote,how = "unlist"),eval)
+})
 
+stats.table.sla.bycont <- lapply(rapply(stats.table.sla.bycont, enquote,
+                                 how = "unlist"),eval)
+stats.table.std.bycont <- lapply(rapply(stats.table.std.bycont, 
+                                 enquote,how = "unlist"),eval)
 
+stats.table.sla.bycont <- as.data.frame(do.call(rbind, stats.table.sla.bycont))
+stats.table.sla.bycont<-setDT(stats.table.sla.bycont, keep.rownames = TRUE)[]
+stats.table.std.bycont <- as.data.frame(do.call(rbind, stats.table.std.bycont))
+stats.table.std.bycont<-setDT(stats.table.std.bycont, keep.rownames = TRUE)[]
 
-# im not sure im understanding how to fucking calculate bias and rmse for fucks sake
+stats.table.sla.bycont <- stats.table.sla.bycont %>%
+  mutate(rn=str_replace(rn,"df.","")) %>%
+  mutate(rn=str_replace(rn,"biome.cont","biomebycont")) %>%
+  separate(rn,into = c("Biomes by continent","Stats"),sep = "\\.") %>%
+  spread(key = Stats, value = V1) %>%
+  rename("Sla Mean (bias)"=bias_av, "Sla Mean (rmse)"=rmse_av,
+         "Sla Mean (r2)"=sla_r2) 
 
+stats.table.std.bycont <- stats.table.std.bycont %>%
+  mutate(rn = str_replace_all(rn,"std.","")) %>%
+  mutate(rn=str_replace(rn,"df.","")) %>%
+  mutate(rn=str_replace(rn,"biome.cont","biomebycont")) %>%
+  separate(rn,into = c("Biomes by continent","Stats"),sep = "\\.") %>%
+  spread(key = Stats, value = V1) %>%
+  rename("Sla StDev (bias)"=bias_av,"Sla StDev (rmse)"=rmse_av,
+         "Sla StDev (r2)"=sla_r2)
 
+stats.table.bycont.out <- left_join(stats.table.sla.bycont,
+                                    stats.table.std.bycont) %>%
+  dplyr::select(`Biomes by continent`,`Sla Mean (r2)`,`Sla StDev (r2)`,
+                `Sla Mean (rmse)`,`Sla StDev (rmse)`, `Sla StDev (rmse)`, 
+                `Sla Mean (bias)`,`Sla StDev (bias)`) %>%
+  filter_all(all_vars(!is.na(.))) %>% # removed three biomes which had NAs 
+  # (not enough data points to do correlation = only one data point)
+  arrange_at(1:length(.))
 
+# table output for biomes split by continent
+(stats.bycont.out <- stats.table.bycont.out %>%
+    kable(digits = 7, "latex", booktabs = T) %>%
+    kable_styling(latex_options = c("striped", "scale_down"),
+                  full_width = F,position = "center", font_size = 12) %>%
+    column_spec(1, italic = T, border_right = T,include_thead	=F) %>%
+    row_spec(0,bold = T)%>%
+    add_header_above(c(" ", "R2" = 2, "RMSE" = 2, "Bias" = 2), 
+                     bold = T) %>%
+    kableExtra::group_rows("Boreal", 1,2) %>%
+    kableExtra::group_rows("Desert",3,7) %>%
+    kableExtra::group_rows("Flooded",8,10) %>%
+    kableExtra::group_rows("Mangroves",11,11) %>%
+    kableExtra::group_rows("Mediterranean",12,16) %>%
+    kableExtra::group_rows("Montane",17,20) %>%
+    kableExtra::group_rows("Temperate",21,30) %>%
+    kableExtra::group_rows("Tropical & Subtropical",31,44) %>%
+    kableExtra::group_rows("Tundra",45,46) %>%
+    as_image(stats.table.out, file= "./figures/table_stats-biome-by-cont.png", 
+             width = 5, dpi = 500))
 
+ 
+#### turning data back to raster for cooler visualisation ####
 
+  # raster visualisation of RMSE values 
 
+  # sla mean
+r.rmse <- lapply(sla.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("x","y","rmse_row")])
+  })
+})
+
+r.rmse <- unlist(r.rmse,recursive=FALSE) # to list of dataframes
+
+spg.rmse <- r.rmse # calling it differently, to make a copy of it as im turning it to sp
+#spg <- lapply(spg, coordinates)
+spg.rmse <- lapply(spg.rmse, rasterFromXYZ)
+
+  # raster visualisation of BIAS values 
+
+r.bias <- lapply(sla.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("x","y","bias_row")])
+  })
+})
+
+r.bias <- unlist(r.bias, recursive = F)
+
+spg.bias <- r.bias
+spg.bias <- lapply(spg.bias, rasterFromXYZ)
+
+## plotting 
+levelplot(spg.bias$`Biome.df.Boreal Forests/Taiga`,
+          par.settings=RdBuTheme, margin =F,asp=NA)
+levelplot(spg.rmse$`Biome.df.Boreal Forests/Taiga`,
+          par.settings=RdBuTheme, margin=F, asp=NA)
+
+r.stats.sla <- lapply(sla.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("x","y","rmse_row","bias_row")])
+  })
+})
+
+r.stats.sla <- unlist(r.stats.sla, recursive = F)
+
+spg.stats.sla <- r.stats.sla
+spg.stats.sla <- lapply(spg.stats.sla, rasterFromXYZ)
+
+png("./figures/sla.stats.global.png", width = 40, height = 30, units = "cm",
+    res = 500)
+levelplot(spg.stats.sla$Global, 
+          par.settings=RdBuTheme(region=rev(brewer.pal(9,'RdBu'))))
+dev.off()
+
+  # sla stdev
+
+r.stats.std <- lapply(slastd.stats.biglist, function(x){
+  lapply(x, function(y){
+    unique(y[c("x","y","rmse_row","bias_row")])
+  })
+})
+
+r.stats.std <- unlist(r.stats.std, recursive = F)
+
+spg.stats.std <- r.stats.std
+spg.stats.std <- lapply(spg.stats.std, rasterFromXYZ)
+
+# plotting standard dev for both rmse and bias - global
+png("./figures/std.stats.global.png", width = 40, height = 30, units = "cm",
+    res = 500)
+levelplot(spg.stats.std$Global, 
+          par.settings=RdBuTheme(region=rev(brewer.pal(9,'RdBu'))))
+dev.off()
+
+# rasterising world map to overlay other data 
+r <- raster(ncols=360, nrows=180)
+r.world <- rasterize(world,r,progress="text")
+r.world[NA] <- NULL
+
+#levelplot(spg.bias$Global,par.settings=RdBuTheme,margins=T)
+par(mar = c(0.7, 2.5, 0.5, 2.5),mfcol=c(2,1))
+plot(r.world,col="black",asp=NA,legend=F)
+plot(spg.bias$Global,add=T,asp=NA,col=rev(brewer.pal(10,"RdBu")))
+
+plot(r.world,col="black",asp=NA,legend=F)
+plot(spg.rmse$Global,add=T,asp=NA,col=rev(brewer.pal(10,"RdBu")))
+
+levelplot(spg.stats.std$Global,par.settings=RdBuTheme)
+
+levelplot(spg.stats.std$Lat.Tropics,par.settings=RdBuTheme)
+
+levelplot(spg.stats.std$Lat.Subtropics,par.settings=RdBuTheme())
+
+levelplot(spg.stats.std$Lat.Temperate,par.settings=RdBuTheme)
+
+levelplot(spg.stats.std$`Biome.df.Boreal Forests/Taiga`,par.settings=RdBuTheme)
 
