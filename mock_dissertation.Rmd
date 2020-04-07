@@ -39,7 +39,7 @@ knitr::include_graphics("uniedlogo.png")
 
 \Large
 
-{\bf Comparison of top-down and bottom-up \\approaches on Specific Leaf Area patterns, \\at global, latitudinal and biome spatial scales.}
+{\bf Comparison of top-down and bottom-up approaches \\on Specific Leaf Area patterns, \\at global, latitudinal and biome spatial scales.}
 
 \vspace{1.5 cm}
 
