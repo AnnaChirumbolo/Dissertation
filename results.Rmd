@@ -1,0 +1,44 @@
+---
+title: " "
+output: pdf_document
+header-includes:
+  - \usepackage{float}
+  - \usepackage{sectsty}
+  - \usepackage{dcolumn}
+---
+
+# Results
+
+this section should summarise the findings of the research referring to all figures, tables and statistical results (some of which may be placed in appendices).
+- include the primary results, ordered logically - it is often useful to follow the same order as presented in the methods.
+- alternatively, you may find that ordering the results from the most important to the least important works better for your project.
+- data should only be presented in the main text once, either in tables or figures; if presented in figures, data can be tabulated in appendices and referred to at the appropriate point in the main text.
+
+**Often, it is recommended that you write the results section first, so that you can write the methods that are appropriate to describe the results presented. Then you can write the discussion next, then the introduction which includes the relevant literature for the scientific story that you are telling and finally the conclusions and abstract – this approach is called writing backwards.**
+
+```{r SLA mean same scale, echo = F, fig.width=9,fig.height=4, fig.cap="\\label{fig:fig1} "}
+par(mfrow=c(1,2), oma = c(0,0,0.5,1) + 0.1)
+plot(cardamom_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
+     zlim=c(0,65), main="Bloom et al.\n", 
+     ylab="Latitude")
+plot(butler_sla[[1]], asp=NA, col = rev(brewer.pal(10, "RdBu")), 
+     zlim=c(0,65),  main="Butler et al.\n", 
+     legend.args=list(text='\n Mean SLA (m2.kg-1)', side=4, 
+                      font=1, line=2)) 
+```
+ 
+ 
+```{r SLA stdev same scale, echo=F, fig.width=9, fig.height=4}
+par(mfrow=c(1,2), oma = c(0,0,0.5,1) + 0.1)
+plot(cardamom_sla_std[[1]], asp=NA, col=rev(brewer.pal(10,"RdBu")), 
+     zlim=c(0,75), xlab="\nLongitude", 
+     ylab="Latitude")
+plot(butler_sla_std[[1]], asp=NA, col=rev(brewer.pal(10,"RdBu")),
+     zlim=c(0,75), xlab="\nLongitude",
+     legend.args=list(text="\nStDev SLA (m2.kg-1)",
+                      side=4, font=1, line=2))
+
+```
+
+
+

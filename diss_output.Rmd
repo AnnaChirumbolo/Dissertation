@@ -1,0 +1,149 @@
+---
+title: " "
+output:
+  pdf_document:
+    number_sections: TRUE
+geometry: "left = 2.5cm, right = 2cm, top = 2cm, bottom = 2cm"
+fontsize: 11pt
+header-includes:
+  - \usepackage{float}
+  - \usepackage{sectsty}
+  - \usepackage{paralist}
+  - \usepackage{setspace}\spacing{1.5}
+  - \usepackage{fancyhdr}
+  - \usepackage{lastpage}
+  - \usepackage{dcolumn}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(units)
+```
+
+\allsectionsfont{\centering}
+\subsectionfont{\raggedright}
+\subsubsectionfont{\raggedright}
+
+\pagenumbering{gobble} 
+
+\begin{centering}
+
+\vspace{3 cm}
+
+```{r pressure, echo=FALSE, out.width = '20%'}
+knitr::include_graphics("uniedlogo.png")
+```
+\vspace{1 cm}
+
+\Large
+
+{\bf The University of Edinburgh}
+
+
+\Large
+
+{\bf School of Geosciences}
+
+
+\vspace{1 cm}
+
+\Large
+\doublespacing
+{\bf COMPARISON OF TOP-DOWN AND BOTTOM-UP APPROACHES ON SPECIFIC LEAF AREA PATTERNS, \\AT GLOBAL, LATITUDINAL AND BIOME SCALES}
+
+\vspace{1 cm}
+
+\normalsize
+\singlespacing
+By 
+
+\vspace{0.5 cm}
+
+\Large
+
+{\bf ANNA CHIRUMBOLO}
+
+\vspace{1.5 cm}
+
+\normalsize
+
+in partial fulfilment of the requirement \\for the degree of BSc with Honours \\in Ecological and Environmental Sciences 
+
+\vspace{1.5 cm}
+
+\normalsize
+May 2020
+
+
+\end{centering}
+
+\newpage
+
+\pagenumbering{gobble} 
+
+\normalsize
+{\bf Abstract}
+
+\spacing{1.5}
+
+(the spacing is set to 1.5) 
+
+no more than 250 words for the abstract
+
+- a description of the research question/knowledge gap – what we know and what we don’t know
+- how your research has attempted to fill this gap
+- a brief description of the methods
+- brief results
+- key conclusions that put the research into a larger context
+
+\pagenumbering{roman} 
+
+\newpage
+
+\centering
+\raggedright
+\newpage
+\tableofcontents
+
+\newpage
+
+\section*{Acknowledgements}
+
+bla bla 
+
+\newpage
+
+\pagenumbering{gobble} 
+
+```{r child = 'introduction.Rmd'}
+```
+\pagenumbering{arabic} 
+
+\newpage
+
+```{r child = 'methods.Rmd'}
+```
+
+\newpage
+
+```{r child = 'results.Rmd'}
+```
+
+\newpage 
+
+```{r child = 'discussion.Rmd'}
+```
+
+\newpage 
+
+```{r child = 'conclusion.Rmd'}
+```
+
+\newpage 
+
+```{r child = 'bibliography.Rmd'}
+```
+
+\newpage 
+
+```{r child = 'appendix.Rmd'}
+```
